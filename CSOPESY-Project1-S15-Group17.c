@@ -35,11 +35,10 @@ void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     printf("Average waiting time: %f\n", 1.0 * sumWait / XYZ[1]);
 }
 
-void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, j, sum;
+void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int i, j;
     struct Process key;
-
-    // sort arrival time (using insertion sort)
+     
     for (i=1; i<XYZ[1]; i++) {
         key = P[i];
         j = i-1;
@@ -49,6 +48,13 @@ void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         }
         P[j+1] = key;
     }
+}
+
+void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int i, sum;
+
+    // sort arrival time (using insertion sort)
+    arrangeProcessArrivalTimes(P, XYZ);
 
     // calculate turnaround time, waiting time, start time, end time
     sum = 0;
@@ -75,6 +81,60 @@ void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     }
 
     printProcesses(P, XYZ);    
+}
+
+void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int i, j, lowIndex, sum, found;
+    struct Process temp;
+
+    // sort arrival time (using insertion sort)
+    arrangeProcessArrivalTimes(P, XYZ);
+
+    //sort burst time
+    sum = 0;
+    i = 0;
+    while (i < XYZ[1]) {
+        found = 0;
+
+        // find lowest index
+        j=i;
+        lowIndex = j;
+
+        while (j < XYZ[1] && sum >= P[j].arrivalTime) {
+            found = 1;
+
+            if (P[lowIndex].totalExeTime > P[j].totalExeTime) {
+                lowIndex = j;
+            }
+           j++;
+        }
+
+        if (!found) {
+            sum++;
+        } else {
+            temp = P[i];
+            P[i] = P[lowIndex];
+            P[lowIndex] = temp;
+
+            P[i].startTime = sum;
+            sum += P[i].totalExeTime;
+            P[i].endTime = sum;
+
+            P[i].turnAroundTime = P[i].endTime - P[i].arrivalTime;
+
+            // waiting time
+            if (i == 0) 
+                P[i].waitingTime = 0;
+            else {
+                P[i].waitingTime = P[i].turnAroundTime - P[i].totalExeTime;
+            }
+
+            i++;
+        }
+    }
+
+    printProcesses(P, XYZ);
+
 }
 
 
@@ -111,20 +171,16 @@ int main () {
         exit(0);
     }
 
-    // printf("X: %d\n", XYZ[0]);
-    // printf("Y: %d\n", XYZ[1]);
-    // printf("Z: %d\n\n processes:\n", XYZ[2]);
-
     switch (XYZ[0]) {
         // FCFS
         case 0:
             XYZ[2] = 1;
-            printf("I entered! \n");
             firstComeFirstServe(processes, XYZ);
             break;
         // NSJF
         case 1:
             XYZ[2] = 1;
+            nonPreemptiveShortestJobFirst(processes, XYZ);
             break;
         // PSJF
         case 2:
