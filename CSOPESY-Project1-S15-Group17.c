@@ -13,14 +13,32 @@ struct Process {
     int totalExeTime;
     int turnAroundTime;
     int waitingTime;
-    // FIXME: not sure if efficient
     int startTime; 
     int endTime;
+    int startEndPremp[300][2];
+    int countStartEnd;
+    int currentExeTime;
 };
 
 int MAX_PROCESS_SIZE = 100;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int i, sumWait = 0;
+
+    for (i=0; i<XYZ[1]; i++) {
+        printf("P[%d]\nStart Time: %d End time: %d\n", P[i].processID, P[i].startTime, P[i].endTime);
+        printf("Waiting time: %d\n", P[i].waitingTime);
+        printf("Turnaround time: %d\n", P[i].turnAroundTime);
+        printf("************************************\n");
+
+        sumWait += P[i].waitingTime;
+    }
+
+    printf("Average waiting time: %f\n", 1.0 * sumWait / XYZ[1]);
+}
+
+// FIXME: make array time a loop
+void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int i, sumWait = 0;
 
     for (i=0; i<XYZ[1]; i++) {
@@ -51,26 +69,26 @@ void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
 }
 
 void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, sum;
+    int i, time;
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
 
     // calculate turnaround time, waiting time, start time, end time
-    sum = 0;
+    time = 0;
     for (i=0; i<XYZ[1]; i++) { 
         // computes start and end time
-        if (sum >= P[i].arrivalTime) {
-            P[i].startTime = sum;     
-            sum += (P[i].totalExeTime); 
+        if (time >= P[i].arrivalTime) {
+            P[i].startTime = time;     
+            time += (P[i].totalExeTime); 
         } else {
             P[i].startTime = P[i].arrivalTime;
-            sum = P[i].arrivalTime + P[i].totalExeTime; 
+            time = P[i].arrivalTime + P[i].totalExeTime; 
         }  
         P[i].endTime =  P[i].startTime + P[i].totalExeTime;
         
         // computes turnaround time
-        P[i].turnAroundTime = sum - P[i].arrivalTime;
+        P[i].turnAroundTime = time - P[i].arrivalTime;
 
         // waiting time
         if (i == 0) 
@@ -84,14 +102,14 @@ void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
 }
 
 void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, j, lowIndex, sum, found;
+    int i, j, lowIndex, time, found;
     struct Process temp;
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
 
     //sort burst time
-    sum = 0;
+    time = 0;
     i = 0;
     while (i < XYZ[1]) {
         found = 0;
@@ -100,7 +118,7 @@ void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3
         j=i;
         lowIndex = j;
 
-        while (j < XYZ[1] && sum >= P[j].arrivalTime) {
+        while (j < XYZ[1] && time >= P[j].arrivalTime) {
             found = 1;
 
             if (P[lowIndex].totalExeTime > P[j].totalExeTime) {
@@ -110,15 +128,15 @@ void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3
         }
 
         if (!found) {
-            sum++;
+            time++;
         } else {
             temp = P[i];
             P[i] = P[lowIndex];
             P[lowIndex] = temp;
 
-            P[i].startTime = sum;
-            sum += P[i].totalExeTime;
-            P[i].endTime = sum;
+            P[i].startTime = time;
+            time += P[i].totalExeTime;
+            P[i].endTime = time;
 
             P[i].turnAroundTime = P[i].endTime - P[i].arrivalTime;
 
@@ -135,6 +153,73 @@ void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3
 
     printProcesses(P, XYZ);
 
+}
+
+void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int time, i, j, lowestIndex, pastLowestIndex, countStartEnd, found; 
+
+    // sort arrival time (using insertion sort)
+    arrangeProcessArrivalTimes(P, XYZ);
+
+    i = 0;
+    time = 0;
+    for (time = 0; i < XYZ[1]; time++) {
+        lowestIndex = 0;
+        found = 0;
+
+        j = 0;
+        //find the lowest burst time at current time
+        while (j < XYZ[1] && time >= P[j].arrivalTime) {
+            found = 1;
+
+            if (P[lowestIndex].currentExeTime > P[j].currentExeTime && P[j].currentExeTime > 0) {
+                lowestIndex = j;
+            }
+            j++;
+        }
+        // for (j = 0; j < XYZ[1]; j++) {
+        //     printf("inside");
+        //     if(P[j].arrivalTime <= time && P[j].currentExeTime < P[lowestIndex].currentExeTime && P[j].currentExeTime > 0) {
+        //         found = 1;
+        //         lowestIndex = j;
+        //     }
+        // }
+
+        if (found) {
+            //setting start time of the process (first occurence)
+            countStartEnd = P[lowestIndex].countStartEnd;
+            if (P[lowestIndex].currentExeTime == P[lowestIndex].totalExeTime)
+                P[lowestIndex].startEndPremp[countStartEnd][0] = time;
+                P[lowestIndex].startEndPremp[countStartEnd][1] = time + 1;
+
+            // check if it is still the same process after time++
+            if (lowestIndex == pastLowestIndex) {
+                P[lowestIndex].startEndPremp[countStartEnd][1]++;
+            } else {
+                // go to the next start and end time of the array (counter for the 2D array)
+                P[lowestIndex].countStartEnd++;
+            }        
+            
+            //updating the execution time left
+            P[lowestIndex].currentExeTime--;
+            printf("%d\n", P[lowestIndex].currentExeTime);
+            pastLowestIndex = lowestIndex;
+
+            printf("time: %d\nlol: %d\n lowestIndex: %d\n", time, P[lowestIndex].currentExeTime, lowestIndex);
+
+            //compute waiting time and turnaround time if no more execution time left 
+            if(P[lowestIndex].currentExeTime == 0) {
+                i++;
+                printf("i: %d", i);
+                // compute completion time (don't mind me)
+                countStartEnd = P[i].countStartEnd;
+
+                //wait_time = wait_time + end - arrival_time[smallest] - temp[smallest];
+                P[i].turnAroundTime = P[i].startEndPremp[countStartEnd][1] - P[i].arrivalTime;
+                P[i].waitingTime = P[i].turnAroundTime - P[i].totalExeTime;
+            }
+        }
+    }
 }
 
 
@@ -162,8 +247,11 @@ int main () {
             fscanf(inputFile,"%d",&processes[i].processID);
             fscanf(inputFile,"%d",&processes[i].arrivalTime);
             fscanf(inputFile,"%d",&processes[i].totalExeTime);
+
+            processes[i].currentExeTime = processes[i].totalExeTime;
+            processes[i].countStartEnd = 0;
         }
-        
+
         fclose(inputFile);
 	}
 	else {
@@ -185,6 +273,7 @@ int main () {
         // PSJF
         case 2:
             XYZ[2] = 1;
+            preemptiveShortestJobFirst(processes, XYZ);
             break;
         // RR 
         case 3:
