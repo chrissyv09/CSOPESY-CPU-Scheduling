@@ -20,11 +20,12 @@ struct Process {
     int currentExeTime;
 };
 
-int MAX_PROCESS_SIZE = 100;
+int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int i, sumWait = 0;
 
+    printf("\n");
     for (i=0; i<XYZ[1]; i++) {
         printf("P[%d]\nStart Time: %d End time: %d\n", P[i].processID, P[i].startTime, P[i].endTime);
         printf("Waiting time: %d\n", P[i].waitingTime);
@@ -34,15 +35,20 @@ void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         sumWait += P[i].waitingTime;
     }
 
-    printf("Average waiting time: %f\n", 1.0 * sumWait / XYZ[1]);
+    printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
 }
 
 // FIXME: make array time a loop
 void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, sumWait = 0;
+    int i, j, sumWait = 0;
 
+    printf("\n");
     for (i=0; i<XYZ[1]; i++) {
-        printf("P[%d]\nStart Time: %d End time: %d\n", P[i].processID, P[i].startTime, P[i].endTime);
+        printf("P[%d]\n", P[i].processID);
+
+        for (j=0; j<=P[i].countStartEnd; j++) 
+            printf("Start Time: %d End time: %d\n",  P[i].startEndPremp[j][0], P[i].startEndPremp[j][1]);
+
         printf("Waiting time: %d\n", P[i].waitingTime);
         printf("Turnaround time: %d\n", P[i].turnAroundTime);
         printf("************************************\n");
@@ -50,7 +56,7 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         sumWait += P[i].waitingTime;
     }
 
-    printf("Average waiting time: %f\n", 1.0 * sumWait / XYZ[1]);
+    printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
 }
 
 void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -156,7 +162,7 @@ void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3
 }
 
 void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int time, i, j, lowestIndex, pastLowestIndex, countStartEnd, found; 
+    int time, i, j, lowIndex, pastLowIndex = -1, countStartEnd, found, start = 0; 
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
@@ -164,7 +170,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     i = 0;
     time = 0;
     for (time = 0; i < XYZ[1]; time++) {
-        lowestIndex = 0;
+        lowIndex = 100; //process with the biggest current execution time
         found = 0;
 
         j = 0;
@@ -172,54 +178,43 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
         while (j < XYZ[1] && time >= P[j].arrivalTime) {
             found = 1;
 
-            if (P[lowestIndex].currentExeTime > P[j].currentExeTime && P[j].currentExeTime > 0) {
-                lowestIndex = j;
+            if (P[lowIndex].currentExeTime > P[j].currentExeTime && P[j].currentExeTime > 0) {
+                lowIndex = j;
             }
             j++;
         }
-        // for (j = 0; j < XYZ[1]; j++) {
-        //     printf("inside");
-        //     if(P[j].arrivalTime <= time && P[j].currentExeTime < P[lowestIndex].currentExeTime && P[j].currentExeTime > 0) {
-        //         found = 1;
-        //         lowestIndex = j;
-        //     }
-        // }
 
         if (found) {
-            //setting start time of the process (first occurence)
-            countStartEnd = P[lowestIndex].countStartEnd;
-            if (P[lowestIndex].currentExeTime == P[lowestIndex].totalExeTime)
-                P[lowestIndex].startEndPremp[countStartEnd][0] = time;
-                P[lowestIndex].startEndPremp[countStartEnd][1] = time + 1;
+            countStartEnd = P[lowIndex].countStartEnd;
 
             // check if it is still the same process after time++
-            if (lowestIndex == pastLowestIndex) {
-                P[lowestIndex].startEndPremp[countStartEnd][1]++;
+            if (lowIndex == pastLowIndex) {
+                P[lowIndex].startEndPremp[countStartEnd][1]++;                      // increment end time since old process
             } else {
-                // go to the next start and end time of the array (counter for the 2D array)
-                P[lowestIndex].countStartEnd++;
+                // 
+                if (start && P[pastLowIndex].currentExeTime > 0) 
+                    P[pastLowIndex].countStartEnd++;                    // so that it would not increment when pastLowIndex is still -1 (increments the past low index since new process)
+                P[lowIndex].startEndPremp[countStartEnd][0] = time;     // set start time since new process
+                P[lowIndex].startEndPremp[countStartEnd][1] = time + 1;     // set end time since new process
             }        
             
             //updating the execution time left
-            P[lowestIndex].currentExeTime--;
-            printf("%d\n", P[lowestIndex].currentExeTime);
-            pastLowestIndex = lowestIndex;
-
-            printf("time: %d\nlol: %d\n lowestIndex: %d\n", time, P[lowestIndex].currentExeTime, lowestIndex);
+            P[lowIndex].currentExeTime--;
+            pastLowIndex = lowIndex;
+            if (!start)
+                start = 1;      // signifies that CPU starts processing (there is pastLowIndex already)
 
             //compute waiting time and turnaround time if no more execution time left 
-            if(P[lowestIndex].currentExeTime == 0) {
+            if(P[lowIndex].currentExeTime == 0) {
                 i++;
-                printf("i: %d", i);
-                // compute completion time (don't mind me)
-                countStartEnd = P[i].countStartEnd;
-
-                //wait_time = wait_time + end - arrival_time[smallest] - temp[smallest];
-                P[i].turnAroundTime = P[i].startEndPremp[countStartEnd][1] - P[i].arrivalTime;
-                P[i].waitingTime = P[i].turnAroundTime - P[i].totalExeTime;
+                countStartEnd = P[lowIndex].countStartEnd;
+                P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
+                P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
             }
         }
     }
+
+    printProcessesPreemp(P, XYZ);
 }
 
 
@@ -252,10 +247,12 @@ int main () {
             processes[i].countStartEnd = 0;
         }
 
+        processes[100].currentExeTime = 2147483647; // biggest value for int
+
         fclose(inputFile);
 	}
 	else {
-		printf ("%s not found.", fileName);
+		printf ("%s not found.\n", fileName);
         exit(0);
     }
 
