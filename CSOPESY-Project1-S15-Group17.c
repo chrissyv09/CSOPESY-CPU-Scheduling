@@ -38,7 +38,6 @@ void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
 }
 
-// FIXME: make array time a loop
 void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int i, j, sumWait = 0;
 
