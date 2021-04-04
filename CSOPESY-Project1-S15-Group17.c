@@ -20,6 +20,8 @@ struct Process {
     int currentExeTime;
 };
 
+
+
 int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -56,6 +58,10 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     }
 
     printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
+}
+
+int isEmpty(struct Process Queue) { 
+
 }
 
 void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -216,11 +222,93 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     printProcessesPreemp(P, XYZ);
 }
 
+void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int changei = 0; //not sure if needed but used for checking if index is changed
+    int total = 0;
+    int i, j, time, totalExe; 
+    int totalExeCopy[XYZ[1]];
+    struct Process process;
+
+    // sort arrival time (using insertion sort)
+    arrangeProcessArrivalTimes(P, XYZ);
+
+    //copy the burst time in another array
+    for (i = 0; i < XYZ[1], i++) { 
+        totalExeCopy[i] = P[i].totalExeTime;
+    }
+
+    //set i = 0 
+    i = 0
+
+    //while i is less than the number of processes and while queue is not empty
+    while (i < XYZ[1] && !isEmpty(queue)) { 
+        if (i == 0) { 
+            //set time to the arrival time whether starting time is a 0 or with skip
+            time = P[i].arrivalTime;
+            process = P[i];
+        } else { 
+            //check if queue is not yet empty
+            if (!isEmpty(queue)) { 
+                process = dequeue(queue);
+                changei = 0;
+            } else { 
+                process = P[i];
+                changei = 1;
+            }
+        }
+
+        //set the start time of the process 
+        
+        process.startEndPrempt[countStartEnd][0] = time;
+
+        //if less than quantum time
+        if (process.totalExeTime <= XYZ[3]) { 
+            time = time + process.totalExeTime;
+            process.totalExeTime = 0;
+        } else { //if greater than quantum time
+            time = time + XYZ[3];
+            process.totalExeTime = process.totalExeTime - XYZ[3];
+        }
+        process.startEndPrempt[countStartEnd][1] = time;
+        process.countStartEnd++;
+
+        //while the succeeding arrival times are within the total time 
+        while (P[i+1].arrivalTime <= time) { 
+            enqueue(P[i + 1]);
+            i++;
+        }
+
+        //if total execution time is not yet 0, add it again to the queue
+        if(process.totalExeTime != 0) { 
+            enqueue(process);
+        } else {
+            process.endTime = time;
+            //else compute for the turnaround time and waiting time
+            for (j=0; j<XYZ[1]; j++) { 
+                if (process.processID == P[j].processID) { 
+                    totalExe = totalExeCopy[j];
+                    break;
+                }
+            }
+            //compute for the turn around time and waiting time
+            process.turnAroundTime = process.endTime - process.arrivalTime;
+            process.waitingTime = process.turnAroundTime - totalExe;
+        }
+
+        //if the processes are not yet finished
+        if (changei && i < XYZ[1]) { 
+            i++;
+        }
+    }
+}
+
+
 
 int main () { 
     char fileName[100];
     int XYZ[3];
     int i;
+    struct Process queue[MAX_PROCESS_SIZE];
     struct Process processes[MAX_PROCESS_SIZE];
     FILE *inputFile;
     
@@ -273,6 +361,7 @@ int main () {
             break;
         // RR 
         case 3:
+            roundRobbin(processes, queue, XYZ);
             break;
     }
     
