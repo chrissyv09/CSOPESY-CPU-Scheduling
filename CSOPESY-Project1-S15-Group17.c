@@ -47,7 +47,7 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     for (i=0; i<XYZ[1]; i++) {
         printf("P[%d]\n", P[i].processID);
 
-        for (j=0; j<=P[i].countStartEnd; j++) 
+        for (j=0; j<P[i].countStartEnd; j++) 
             printf("Start Time: %d End time: %d\n",  P[i].startEndPremp[j][0], P[i].startEndPremp[j][1]);
 
         printf("Waiting time: %d\n", P[i].waitingTime);
@@ -177,7 +177,6 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     for (time = 0; i < XYZ[1]; time++) {
         lowIndex = 100; //process with the biggest current execution time
         found = 0;
-
         j = 0;
         //find the lowest burst time at current time
         while (j < XYZ[1] && time >= P[j].arrivalTime) {
@@ -215,6 +214,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
                 countStartEnd = P[lowIndex].countStartEnd;
                 P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
                 P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
+                P[lowIndex].countStartEnd++;            // para consistent sa printing
             }
         }
     }
