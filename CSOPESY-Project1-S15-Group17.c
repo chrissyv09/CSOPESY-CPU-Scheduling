@@ -241,7 +241,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     i = 0
 
     //while i is less than the number of processes and while queue is not empty
-    while (i < XYZ[1] && !isEmpty(queue)) { 
+    while (i < XYZ[1] || !isEmpty(queue)) { 
         if (i == 0) { 
             //set time to the arrival time whether starting time is a 0 or with skip
             time = P[i].arrivalTime;
@@ -273,7 +273,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         process.countStartEnd++;
 
         //while the succeeding arrival times are within the total time 
-        while (P[i+1].arrivalTime <= time) { 
+        while (P[i+1].arrivalTime <= time && i < XYZ[1]) { 
             enqueue(P[i + 1]);
             i++;
         }
