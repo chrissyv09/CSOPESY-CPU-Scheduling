@@ -289,17 +289,13 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     //while i is less than the number of processes and while queue is not empty
     while (i < XYZ[1] && !isEmpty(q)) { 
 
-        //check if queue is not yet empty
-        if (!isEmpty(q)) { 
-            process = dequeue(q);
-            changei = 0;
-        } else { 
-            i++; 
-            process = P[i];
-            changei = 1;
+        process = dequeue(q);
+
+        // for gap
+        if (changei) {
             time = P[i].arrivalTime; 
+            changei = 0;
         }
-        
 
         //set the start time of the process      
         process.startEndPrempt[countStartEnd][0] = time;
@@ -330,9 +326,11 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
             process.waitingTime = process.turnAroundTime - process.totalExeTime;
         }
 
-        //if the processes are not yet finished
-        if (changei && i < XYZ[1]) { 
+        //if the processes are not yet finished (there is gap)
+        if (isEmpty(q) && i < XYZ[1]) { 
             i++;
+            changei = 1;
+            enqueue(q, P[i]);
         }
     }
 }
