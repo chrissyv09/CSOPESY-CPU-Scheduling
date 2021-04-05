@@ -7,6 +7,8 @@ Section: S15
 #include <stdio.h>
 #include <stdlib.h>
 
+int MAX_PROCESS_SIZE = 101;
+
 struct Process {
     int processID;
     int arrivalTime;
@@ -20,10 +22,9 @@ struct Process {
     int currentExeTime;
 };
 
-typdef struct node
-{
- struct Process process; 
- struct node *next;    
+typedef struct node {
+    int index;
+    struct node *next;    
 } node;
 
 typedef struct queue {
@@ -33,20 +34,23 @@ typedef struct queue {
 } queue; 
 
 //initialize the head and tail to null
-void init_queue (queue *q) {
+queue* init_queue () {
+    struct queue* q = (struct queue*)malloc(sizeof(struct queue));
     q->count = 0;
     q->head = NULL; 
     q->tail = NULL; 
+
+    return q;
 }
 
 int isEmpty (queue *q) { 
     return (q->tail == NULL);
 } 
 
-void enqueue (queue *q, struct Process P) { 
+void enqueue (queue *q, int index) { 
     node *Node = malloc(sizeof(node));
-    newnode->process = p; 
-    newnode->next = NULL;
+    Node->index = index; 
+    Node->next = NULL;
 
     if (!isEmpty(q)) { 
         q->tail->next = Node;
@@ -57,20 +61,26 @@ void enqueue (queue *q, struct Process P) {
     q->count++;
 }
 
-struct Process dequeue(queue *q) { 
+int dequeue(queue *q) { 
+
+    if (q->head == NULL)
+        return -1;
+
     node *Node = malloc(sizeof(node));
-    struct Process P = q->head->process;
     Node = q->head;
+    int index = q->head->index;
+    
     q->head = q->head->next;
     q->count--;
 
+    if (q->head == NULL)
+        q->tail = NULL;
+
     //free memory
     free(Node);
-    return P;
+    return index;
 } 
 
-
-int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int i, sumWait = 0;
@@ -95,7 +105,7 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     for (i=0; i<XYZ[1]; i++) {
         printf("P[%d]\n", P[i].processID);
 
-        for (j=0; j<=P[i].countStartEnd; j++) 
+        for (j=0; j<P[i].countStartEnd; j++) 
             printf("Start Time: %d End time: %d\n",  P[i].startEndPremp[j][0], P[i].startEndPremp[j][1]);
 
         printf("Waiting time: %d\n", P[i].waitingTime);
@@ -269,12 +279,10 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
 void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int changei = 1; //not sure if needed but used for checking if index is changed
     int total = 0;
-    int i, j, time, totalExe; 
-    struct Process process;
+    int i, j, time, totalExe, countStartEnd, index; 
 
-    //for queue
-    queue *q;
-    q = malloc(sizeof(queue));
+    //for queue (initialize)
+    queue* q = init_queue();
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
@@ -283,12 +291,12 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     i = 0;
 
     //set time to the arrival time whether starting time is a 0 or with skip
-    enqueue(q, P[i]);
+    enqueue(q, i);
 
     //while i is less than the number of processes and while queue is not empty
     while (i < XYZ[1] && !isEmpty(q)) { 
 
-        process = dequeue(q);
+        index = dequeue(q);
 
         // for gap and starting processes
         if (changei) {
@@ -296,42 +304,45 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
             changei = 0;
         }
 
-        //set the start time of the process      
-        process.startEndPrempt[countStartEnd][0] = time;
+        //set the start time of the process    
+        countStartEnd = P[index].countStartEnd;
+        P[index].startEndPremp[countStartEnd][0] = time;
 
         //if less than quantum time
-        if (process.currentExeTime <= XYZ[3]) { 
-            time = time + process.currentExeTime;
-            process.currentExeTime = 0;
+        if (P[index].currentExeTime <= XYZ[2]) { 
+            time = time + P[index].currentExeTime;
+            P[index].currentExeTime = 0;
         } else { //if greater than quantum time
-            time = time + XYZ[3];
-            process.currentExeTime = process.currentExeTime - XYZ[3];
+            time = time + XYZ[2];
+            P[index].currentExeTime = P[index].currentExeTime - XYZ[2];
         }
-        process.startEndPrempt[countStartEnd][1] = time;
-        process.countStartEnd++;
+        P[index].startEndPremp[countStartEnd][1] = time;
+        P[index].countStartEnd++;
 
         //while the succeeding arrival times are within the total time 
-        while (i+1 < XYZ[1] && P[i+1].arrivalTime <= time) { 
-            enqueue(q, P[i + 1]);
+        while ((i+1) < XYZ[1] && P[i+1].arrivalTime <= time) { 
+            enqueue(q, (i+1));
             i++;
         }
 
         //if total execution time is not yet 0, add it again to the queue
-        if(process.currentExeTime != 0) { 
-            enqueue(q, process);
+        if(P[index].currentExeTime != 0) { 
+            enqueue(q, index);
         } else {
             //compute for the turn around time and waiting time
-            process.turnAroundTime = time - process.arrivalTime;
-            process.waitingTime = process.turnAroundTime - process.totalExeTime;
+            P[index].turnAroundTime = time - P[index].arrivalTime;
+            P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
         }
 
         //if the processes are not yet finished (there is gap)
-        if (isEmpty(q) && i < XYZ[1]-1) { 
+        if (isEmpty(q) && i < (XYZ[1]-1)) { 
             i++;
             changei = 1;
-            enqueue(q, P[i]);
+            enqueue(q, i);
         }
     }
+
+    printProcessesPreemp(P, XYZ);
 }
 
 int main () { 
