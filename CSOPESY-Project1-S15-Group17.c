@@ -267,7 +267,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
 }
 
 void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int changei = 0; //not sure if needed but used for checking if index is changed
+    int changei = 1; //not sure if needed but used for checking if index is changed
     int total = 0;
     int i, j, time, totalExe; 
     struct Process process;
@@ -284,7 +284,6 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
 
     //set time to the arrival time whether starting time is a 0 or with skip
     enqueue(q, P[i]);
-    time = P[i].arrivalTime;
 
     //while i is less than the number of processes and while queue is not empty
     while (i < XYZ[1] && !isEmpty(q)) { 
