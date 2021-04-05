@@ -20,8 +20,6 @@ struct Process {
     int currentExeTime;
 };
 
-
-
 int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -47,7 +45,7 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     for (i=0; i<XYZ[1]; i++) {
         printf("P[%d]\n", P[i].processID);
 
-        for (j=0; j<P[i].countStartEnd; j++) 
+        for (j=0; j<=P[i].countStartEnd; j++) 
             printf("Start Time: %d End time: %d\n",  P[i].startEndPremp[j][0], P[i].startEndPremp[j][1]);
 
         printf("Waiting time: %d\n", P[i].waitingTime);
@@ -177,6 +175,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     for (time = 0; i < XYZ[1]; time++) {
         lowIndex = 100; //process with the biggest current execution time
         found = 0;
+
         j = 0;
         //find the lowest burst time at current time
         while (j < XYZ[1] && time >= P[j].arrivalTime) {
@@ -214,7 +213,6 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
                 countStartEnd = P[lowIndex].countStartEnd;
                 P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
                 P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
-                P[lowIndex].countStartEnd++;            // para consistent sa printing
             }
         }
     }
@@ -226,48 +224,49 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     int changei = 0; //not sure if needed but used for checking if index is changed
     int total = 0;
     int i, j, time, totalExe; 
-    int totalExeCopy[XYZ[1]];
     struct Process process;
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
 
     //copy the burst time in another array
-    for (i = 0; i < XYZ[1], i++) { 
-        totalExeCopy[i] = P[i].totalExeTime;
-    }
+    // for (i = 0; i < XYZ[1], i++) { 
+    //     totalExeCopy[i] = P[i].totalExeTime;
+    // }
 
     //set i = 0 
-    i = 0
+    i = 0;
+
+    //set time to the arrival time whether starting time is a 0 or with skip
+    time = P[i].arrivalTime;
+    process = P[i];
+    
 
     //while i is less than the number of processes and while queue is not empty
     while (i < XYZ[1] || !isEmpty(queue)) { 
-        if (i == 0) { 
-            //set time to the arrival time whether starting time is a 0 or with skip
-            time = P[i].arrivalTime;
-            process = P[i];
+
+        //check if queue is not yet empty
+        if (!isEmpty(queue)) { 
+            process = dequeue(queue);
+            changei = 0;
         } else { 
-            //check if queue is not yet empty
-            if (!isEmpty(queue)) { 
-                process = dequeue(queue);
-                changei = 0;
-            } else { 
-                process = P[i];
-                changei = 1;
-            }
+            process = P[i];
+            changei = 1;
+            time = P[i].arrivalTime; 
         }
+        
 
         //set the start time of the process 
         
         process.startEndPrempt[countStartEnd][0] = time;
 
         //if less than quantum time
-        if (process.totalExeTime <= XYZ[3]) { 
-            time = time + process.totalExeTime;
-            process.totalExeTime = 0;
+        if (process.currentExeTime <= XYZ[3]) { 
+            time = time + process.currentExeTime;
+            process.currentExeTime = 0;
         } else { //if greater than quantum time
             time = time + XYZ[3];
-            process.totalExeTime = process.totalExeTime - XYZ[3];
+            process.currentExeTime = process.currentExeTime - XYZ[3];
         }
         process.startEndPrempt[countStartEnd][1] = time;
         process.countStartEnd++;
@@ -279,20 +278,13 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         }
 
         //if total execution time is not yet 0, add it again to the queue
-        if(process.totalExeTime != 0) { 
+        if(process.currentExeTime != 0) { 
             enqueue(process);
         } else {
             process.endTime = time;
-            //else compute for the turnaround time and waiting time
-            for (j=0; j<XYZ[1]; j++) { 
-                if (process.processID == P[j].processID) { 
-                    totalExe = totalExeCopy[j];
-                    break;
-                }
-            }
             //compute for the turn around time and waiting time
             process.turnAroundTime = process.endTime - process.arrivalTime;
-            process.waitingTime = process.turnAroundTime - totalExe;
+            process.waitingTime = process.turnAroundTime - process.totalExeTime;
         }
 
         //if the processes are not yet finished
@@ -337,8 +329,7 @@ int main () {
         processes[100].currentExeTime = 2147483647; // biggest value for int
 
         fclose(inputFile);
-	}
-	else {
+	} else {
 		printf ("%s not found.\n", fileName);
         exit(0);
     }
