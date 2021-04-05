@@ -287,61 +287,6 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     }
 }
 
-void roundRobbinSecond(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int changei = 0; //not sure if needed but used for checking if index is changed
-    int total = 0;
-    int i, j, time = 0, totalExe, found; 
-
-    // sort arrival time (using insertion sort)
-    arrangeProcessArrivalTimes(P, XYZ);
-
-    //set i = 0 
-    i = 0
-    for (time = 0; i < XYZ[1]; time++) {
-        found = 0;
-        j = 0
-        //find the lowest burst time at current time
-        while (j < XYZ[1] && time >= P[j].arrivalTime && !found)  {
-            if (P[j].currentExeTime > 0 && )
-                found = 1;
-            j++;
-        }
-
-        if (found) {
-            countStartEnd = P[lowIndex].countStartEnd;
-
-            // check if it is still the same process after time++
-            if (lowIndex == pastLowIndex) {
-                P[lowIndex].startEndPremp[countStartEnd][1]++;                      // increment end time since old process
-            } else {
-                // 
-                if (start && P[pastLowIndex].currentExeTime > 0) 
-                    P[pastLowIndex].countStartEnd++;                    // so that it would not increment when pastLowIndex is still -1 (increments the past low index since new process)
-                P[lowIndex].startEndPremp[countStartEnd][0] = time;     // set start time since new process
-                P[lowIndex].startEndPremp[countStartEnd][1] = time + 1;     // set end time since new process
-            }        
-            
-            //updating the execution time left
-            P[lowIndex].currentExeTime--;
-            pastLowIndex = lowIndex;
-            if (!start)
-                start = 1;      // signifies that CPU starts processing (there is pastLowIndex already)
-
-            //compute waiting time and turnaround time if no more execution time left 
-            if(P[lowIndex].currentExeTime == 0) {
-                i++;
-                countStartEnd = P[lowIndex].countStartEnd;
-                P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
-                P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
-                P[lowIndex].countStartEnd++;            // para consistent sa printing
-            }
-        }
-    }
-
-
-    
-}
-
 int main () { 
     char fileName[100];
     int XYZ[3];
