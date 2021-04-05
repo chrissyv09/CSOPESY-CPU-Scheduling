@@ -235,21 +235,20 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
 
-    //copy the burst time in another array
-    // for (i = 0; i < XYZ[1], i++) { 
-    //     totalExeCopy[i] = P[i].totalExeTime;
-    // }
-
     //set i = 0 
     i = 0;
 
     //set time to the arrival time whether starting time is a 0 or with skip
     enqueue(P[i]);
     time = P[i].arrivalTime;
+<<<<<<< HEAD
+=======
+    dequeue(P[i])
+>>>>>>> b2975054bcf82de0e3e67f8f9d73dd8f187c5408
     
 
     //while i is less than the number of processes and while queue is not empty
-    while (i < XYZ[1] || !isEmpty(queue)) { 
+    while (i < XYZ[1] && !isEmpty(queue)) { 
 
         //check if queue is not yet empty
         if (!isEmpty(queue)) { 
@@ -262,8 +261,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         }
         
 
-        //set the start time of the process 
-        
+        //set the start time of the process      
         process.startEndPrempt[countStartEnd][0] = time;
 
         //if less than quantum time
@@ -287,9 +285,8 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         if(process.currentExeTime != 0) { 
             enqueue(process);
         } else {
-            process.endTime = time;
             //compute for the turn around time and waiting time
-            process.turnAroundTime = process.endTime - process.arrivalTime;
+            process.turnAroundTime = time - process.arrivalTime;
             process.waitingTime = process.turnAroundTime - process.totalExeTime;
         }
 
@@ -299,8 +296,6 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         }
     }
 }
-
-
 
 int main () { 
     char fileName[100];
