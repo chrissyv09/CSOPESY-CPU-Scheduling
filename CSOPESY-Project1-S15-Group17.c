@@ -63,9 +63,6 @@ void enqueue (queue *q, int index) {
 
 int dequeue(queue *q) { 
 
-    if (q->head == NULL)
-        return -1;
-
     node *Node = malloc(sizeof(node));
     Node = q->head;
     int index = q->head->index;
