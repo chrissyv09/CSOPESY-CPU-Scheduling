@@ -294,6 +294,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
             process = dequeue(q);
             changei = 0;
         } else { 
+            i++; 
             process = P[i];
             changei = 1;
             time = P[i].arrivalTime; 
