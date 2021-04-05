@@ -21,7 +21,6 @@ struct Process {
 };
 
 
-
 int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -232,11 +231,6 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
 
-    //copy the burst time in another array
-    for (i = 0; i < XYZ[1], i++) { 
-        totalExeCopy[i] = P[i].totalExeTime;
-    }
-
     //set i = 0 
     i = 0
 
@@ -254,20 +248,20 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
             } else { 
                 process = P[i];
                 changei = 1;
+                time = P[i].arrivalTime;
             }
         }
 
-        //set the start time of the process 
-        
+        //set the start time of the process      
         process.startEndPrempt[countStartEnd][0] = time;
 
         //if less than quantum time
-        if (process.totalExeTime <= XYZ[3]) { 
-            time = time + process.totalExeTime;
-            process.totalExeTime = 0;
+        if (process.currentExeTime <= XYZ[3]) { 
+            time = time + process.currentExeTime;
+            process.currentExeTime = 0;
         } else { //if greater than quantum time
             time = time + XYZ[3];
-            process.totalExeTime = process.totalExeTime - XYZ[3];
+            process.currentExeTime = process.currentExeTime - XYZ[3];
         }
         process.startEndPrempt[countStartEnd][1] = time;
         process.countStartEnd++;
@@ -279,20 +273,12 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
         }
 
         //if total execution time is not yet 0, add it again to the queue
-        if(process.totalExeTime != 0) { 
+        if(process.currentExeTime != 0) { 
             enqueue(process);
         } else {
-            process.endTime = time;
-            //else compute for the turnaround time and waiting time
-            for (j=0; j<XYZ[1]; j++) { 
-                if (process.processID == P[j].processID) { 
-                    totalExe = totalExeCopy[j];
-                    break;
-                }
-            }
             //compute for the turn around time and waiting time
-            process.turnAroundTime = process.endTime - process.arrivalTime;
-            process.waitingTime = process.turnAroundTime - totalExe;
+            process.turnAroundTime = time - process.arrivalTime;
+            process.waitingTime = process.turnAroundTime - process.totalExeTime;
         }
 
         //if the processes are not yet finished
@@ -302,7 +288,60 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     }
 }
 
+void roundRobbinSecond(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int changei = 0; //not sure if needed but used for checking if index is changed
+    int total = 0;
+    int i, j, time = 0, totalExe, found; 
 
+    // sort arrival time (using insertion sort)
+    arrangeProcessArrivalTimes(P, XYZ);
+
+    //set i = 0 
+    i = 0
+    for (time = 0; i < XYZ[1]; time++) {
+        found = 0;
+        j = 0
+        //find the lowest burst time at current time
+        while (j < XYZ[1] && time >= P[j].arrivalTime && !found)  {
+            if (P[j].currentExeTime > 0 && )
+                found = 1;
+            j++;
+        }
+
+        if (found) {
+            countStartEnd = P[lowIndex].countStartEnd;
+
+            // check if it is still the same process after time++
+            if (lowIndex == pastLowIndex) {
+                P[lowIndex].startEndPremp[countStartEnd][1]++;                      // increment end time since old process
+            } else {
+                // 
+                if (start && P[pastLowIndex].currentExeTime > 0) 
+                    P[pastLowIndex].countStartEnd++;                    // so that it would not increment when pastLowIndex is still -1 (increments the past low index since new process)
+                P[lowIndex].startEndPremp[countStartEnd][0] = time;     // set start time since new process
+                P[lowIndex].startEndPremp[countStartEnd][1] = time + 1;     // set end time since new process
+            }        
+            
+            //updating the execution time left
+            P[lowIndex].currentExeTime--;
+            pastLowIndex = lowIndex;
+            if (!start)
+                start = 1;      // signifies that CPU starts processing (there is pastLowIndex already)
+
+            //compute waiting time and turnaround time if no more execution time left 
+            if(P[lowIndex].currentExeTime == 0) {
+                i++;
+                countStartEnd = P[lowIndex].countStartEnd;
+                P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
+                P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
+                P[lowIndex].countStartEnd++;            // para consistent sa printing
+            }
+        }
+    }
+
+
+    
+}
 
 int main () { 
     char fileName[100];
