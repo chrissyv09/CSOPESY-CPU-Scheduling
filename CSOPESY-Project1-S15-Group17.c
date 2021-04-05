@@ -290,7 +290,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
 
         process = dequeue(q);
 
-        // for gap
+        // for gap and starting processes
         if (changei) {
             time = P[i].arrivalTime; 
             changei = 0;
