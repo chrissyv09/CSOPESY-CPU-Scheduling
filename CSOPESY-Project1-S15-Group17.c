@@ -20,6 +20,12 @@ struct Process {
     int currentExeTime;
 };
 
+typdef struct node
+{
+ struct Process process; 
+ struct node *next;    
+} node;
+
 int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -238,8 +244,8 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     i = 0;
 
     //set time to the arrival time whether starting time is a 0 or with skip
+    enqueue(P[i]);
     time = P[i].arrivalTime;
-    process = P[i];
     
 
     //while i is less than the number of processes and while queue is not empty
