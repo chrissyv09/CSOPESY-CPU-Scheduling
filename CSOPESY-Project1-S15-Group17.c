@@ -26,6 +26,50 @@ typdef struct node
  struct node *next;    
 } node;
 
+typedef struct queue {
+    int count; 
+    node *head; 
+    node *tail;
+} queue; 
+
+//initialize the head and tail to null
+void init_queue (queue *q) {
+    q->count = 0;
+    q->head = NULL; 
+    q->tail = NULL; 
+}
+
+int isEmpty (queue *q) { 
+    return (q->tail == NULL);
+} 
+
+void enqueue (queue *q, struct Process P) { 
+    node *Node = malloc(sizeof(node));
+    newnode->process = p; 
+    newnode->next = NULL;
+
+    if (!isEmpty(q)) { 
+        q->tail->next = Node;
+        q->tail = Node;
+    } else { 
+        q->head = q->tail = Node;
+    } 
+    q->count++;
+}
+
+struct Process dequeue(queue *q) { 
+    node *Node = malloc(sizeof(node));
+    struct Process P = q->head->process;
+    Node = q->head;
+    q->head = q->head->next;
+    q->count--;
+
+    //free memory
+    free(Node);
+    return P;
+} 
+
+
 int MAX_PROCESS_SIZE = 101;
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -62,10 +106,6 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     }
 
     printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
-}
-
-int isEmpty(struct Process Queue) { 
-
 }
 
 void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -226,11 +266,15 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     printProcessesPreemp(P, XYZ);
 }
 
-void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PROCESS_SIZE], int XYZ[3]) {
+void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int changei = 0; //not sure if needed but used for checking if index is changed
     int total = 0;
     int i, j, time, totalExe; 
     struct Process process;
+
+    //for queue
+    queue *q;
+    q = malloc(sizeof(queue));
 
     // sort arrival time (using insertion sort)
     arrangeProcessArrivalTimes(P, XYZ);
@@ -239,20 +283,15 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
     i = 0;
 
     //set time to the arrival time whether starting time is a 0 or with skip
-    enqueue(P[i]);
+    enqueue(q, P[i]);
     time = P[i].arrivalTime;
-<<<<<<< HEAD
-=======
-    dequeue(P[i])
->>>>>>> b2975054bcf82de0e3e67f8f9d73dd8f187c5408
-    
 
     //while i is less than the number of processes and while queue is not empty
-    while (i < XYZ[1] && !isEmpty(queue)) { 
+    while (i < XYZ[1] && !isEmpty(q)) { 
 
         //check if queue is not yet empty
-        if (!isEmpty(queue)) { 
-            process = dequeue(queue);
+        if (!isEmpty(q)) { 
+            process = dequeue(q);
             changei = 0;
         } else { 
             process = P[i];
@@ -277,13 +316,13 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], struct Process queue[MAX_PR
 
         //while the succeeding arrival times are within the total time 
         while (P[i+1].arrivalTime <= time && i < XYZ[1]) { 
-            enqueue(P[i + 1]);
+            enqueue(q, P[i + 1]);
             i++;
         }
 
         //if total execution time is not yet 0, add it again to the queue
         if(process.currentExeTime != 0) { 
-            enqueue(process);
+            enqueue(q, process);
         } else {
             //compute for the turn around time and waiting time
             process.turnAroundTime = time - process.arrivalTime;
@@ -301,7 +340,6 @@ int main () {
     char fileName[100];
     int XYZ[3];
     int i;
-    struct Process queue[MAX_PROCESS_SIZE];
     struct Process processes[MAX_PROCESS_SIZE];
     FILE *inputFile;
     
@@ -353,7 +391,7 @@ int main () {
             break;
         // RR 
         case 3:
-            roundRobbin(processes, queue, XYZ);
+            roundRobbin(processes, XYZ);
             break;
     }
     
