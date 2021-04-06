@@ -266,6 +266,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
                 countStartEnd = P[lowIndex].countStartEnd;
                 P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
                 P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
+                P[lowIndex].countStartEnd++;    
             }
         }
     }
