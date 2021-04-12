@@ -362,6 +362,12 @@ int main () {
         fscanf(inputFile,"%d",&XYZ[1]);
         fscanf(inputFile,"%d",&XYZ[2]);
 
+        //error checking
+        if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
+            printf("Invalid inputs \n");
+            exit(0);
+        }
+
         // loop all processes XYZ[1]=Y
         for (i=0; i<XYZ[1]; i++) {
             fscanf(inputFile,"%d",&processes[i].processID);
