@@ -22,6 +22,11 @@ struct Process {
     int currentExeTime;
 };
 
+struct StartEndTime {
+    int startTime;
+    int endTime;
+};
+
 typedef struct node {
     int index;
     struct node *next;    
@@ -78,6 +83,156 @@ int dequeue(queue *q) {
     return index;
 } 
 
+int findCount(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]){
+    int i, count = 0;
+
+    for (i=0; i<XYZ[1]; i++)
+        count += P[i].countStartEnd;
+
+    return count;
+}
+
+// works only for non-premptive
+void printGanttChart(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+    int i, j;
+    
+    printf("\nGantt Chart\n");
+
+    // first line
+    for (i=0; i<XYZ[1]; i++) 
+        printf("---------");
+    printf("\n|");
+
+    // processes
+    for (i=0; i<XYZ[1]; i++) {
+        if (i==0) {
+            // gap in the front
+            if (P[i].startTime!=0) 
+                printf("-------|");             
+        } else {
+            // gap in between
+            if (P[i].startTime != P[i-1].endTime)
+                printf("-------|");
+        }
+        printf("P%-7d|", P[i].processID);
+    }
+    printf("\n");
+
+    // last line
+    for (i=0; i<XYZ[1]; i++) 
+        printf("---------");
+    printf("\n");
+
+    // timeline
+    for (i=0; i<XYZ[1]; i++) {
+        if (i==0) {
+            printf("%-9d", 0);
+            if (P[i].startTime==0) 
+                printf("%-9d", P[i].endTime);
+            else // gap in front
+                printf("%-9d%-9d", P[i].startTime, P[i].endTime);
+        } else {
+            // gap in between
+            if (P[i].startTime != P[i-1].endTime) 
+                printf("%-9d%-9d", P[i].startTime, P[i].endTime); 
+
+            else 
+                printf("%-9d", P[i].endTime); 
+        }
+    }
+    printf("\n\n");
+}
+
+void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3], int count) {
+    int i, j, k, time = 0, found= 0, second = 0, index = 0, startEndIndex = 0, tempIndex = 0;
+    struct StartEndTime tempTimeLine[count];
+ 
+    printf("\nGantt Chart\n");
+
+    // first line
+    for (i=0; i<count; i++) 
+        printf("---------");
+    printf("\n|");
+
+    //processes
+    for (i=0; i<count; i++) {
+        found = 0;
+        for (j=0; j<XYZ[1] && !found; j++) {
+            for (k=0; k<P[j].countStartEnd && !found; k++) {
+                if (time == P[j].startEndPremp[k][0]) {
+                    found = 1;
+                    printf("P%-7d|", P[j].processID);
+                    time = P[j].startEndPremp[k][1];
+                    tempTimeLine[tempIndex].startTime = P[j].startEndPremp[k][0];
+                    tempTimeLine[tempIndex].endTime = P[j].startEndPremp[k][1];
+                    tempIndex++;
+                }
+            }
+        }
+
+        // printf("\n%d %d %d\n", i, found, time);
+
+        // gap in front
+        if (time == 0 && !found) {
+            found = 1;
+            printf("-------|");    
+            printf("P%-7d|", P[0].processID);
+            time = P[0].startEndPremp[0][1];
+
+            tempTimeLine[tempIndex].startTime = P[0].startEndPremp[0][0];
+            tempTimeLine[tempIndex].endTime = P[0].startEndPremp[0][1];
+            tempIndex++;
+        }
+
+        // gap in between
+        if (!found){
+            second = P[100].currentExeTime;
+            // printf("\n%d\n", second);
+            for (j=0; j<XYZ[1]; j++) {
+                for (k=0; k<P[j].countStartEnd; k++) 
+                    if (P[j].startEndPremp[k][0] > time && P[j].startEndPremp[k][0] < second) {
+                        second = P[j].startEndPremp[k][0]; 
+                        index = j;
+                        startEndIndex = k;
+                    } 
+            }
+
+            printf("-------|");   
+            printf("P%-7d|", P[index].processID);
+            time = P[index].startEndPremp[startEndIndex][1];
+
+            tempTimeLine[tempIndex].startTime = P[index].startEndPremp[startEndIndex][0];
+            tempTimeLine[tempIndex].endTime = time;
+            tempIndex++;
+        }
+    }
+    printf("\n");
+    
+    // last line
+    for (i=0; i<count; i++) 
+        printf("---------");
+    printf("\n");
+
+    // timeline
+    for (i=0; i<tempIndex; i++) {
+        if (i==0) {
+            printf("%-9d", 0);
+            if (tempTimeLine[i].startTime==0) 
+                printf("%-9d", tempTimeLine[i].endTime);
+            else // gap in front
+                printf("%-9d%-9d", tempTimeLine[i].startTime, tempTimeLine[i].endTime);
+        } else {
+            // gap in between
+            if (tempTimeLine[i].startTime != tempTimeLine[i-1].endTime) 
+                printf("%-9d%-9d", tempTimeLine[i].startTime, tempTimeLine[i].endTime); 
+
+            else 
+                printf("%-9d", tempTimeLine[i].endTime); 
+        }
+    }
+
+    printf("\n\n");
+}
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     int i, sumWait = 0;
@@ -160,7 +315,8 @@ void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         }
     }
 
-    printProcesses(P, XYZ);    
+    printProcesses(P, XYZ);   
+    printGanttChart(P, XYZ); 
 }
 
 void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -214,7 +370,7 @@ void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3
     }
 
     printProcesses(P, XYZ);
-
+    printGanttChart(P, XYZ); 
 }
 
 void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -272,6 +428,7 @@ void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     }
 
     printProcessesPreemp(P, XYZ);
+    printGanttChartPreemp(P, XYZ, findCount(P,XYZ)); 
 }
 
 void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
@@ -341,6 +498,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     }
 
     printProcessesPreemp(P, XYZ);
+    printGanttChartPreemp(P, XYZ, findCount(P,XYZ)); 
 }
 
 int main () { 
@@ -364,15 +522,24 @@ int main () {
 
         //error checking
         if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
-            printf("Invalid inputs \n");
+            printf("Invalid input for X, Y and Z. Please rerun the program again.\n");
             exit(0);
         }
 
         // loop all processes XYZ[1]=Y
         for (i=0; i<XYZ[1]; i++) {
+            processes[i].processID = -1;
+            processes[i].arrivalTime = -1;
+            processes[i].totalExeTime = -1;
+            
             fscanf(inputFile,"%d",&processes[i].processID);
             fscanf(inputFile,"%d",&processes[i].arrivalTime);
             fscanf(inputFile,"%d",&processes[i].totalExeTime);
+
+            if (processes[i].processID < 0 || processes[i].arrivalTime < 0 || processes[i].totalExeTime < 0) { 
+                printf("Invalid input for processes. Please rerun the program again.\n");
+                exit(0);
+            }
 
             processes[i].currentExeTime = processes[i].totalExeTime;
             processes[i].countStartEnd = 0;
