@@ -518,7 +518,7 @@ int checkDigits(char *input) {
 int main () { 
     char fileName[100];
     int XYZ[3];
-    int i;
+    int i, temp;
     struct Process processes[MAX_PROCESS_SIZE];
     FILE *inputFile;
     
@@ -529,71 +529,30 @@ int main () {
     //try this
     inputFile = fopen(fileName,"rt");
 
-    if (inputFile != NULL) { 
-        //to count the num of rows
-        int counter = 0; 
-        char row[256];
-        char *tokens; 
+    // if (inputFile != NULL) { 
+    //     //to count the num of rows
+    //     int counter = 0; 
+    //     char row[256];
+    //     char *tokens; 
 
-        while(fgets(row, 256, inputFile)) { 
-            counter = 0; 
-            tokens = strtok(row, " ");
-            while (tokens != NULL) { 
-                // if (!checkDigits(tokens)) { 
-                //     printf("Error! Program cannot accept non-numeric inputs \n");
-                //     exit(0);
-                // }
-                counter++;
-                tokens = strtok(NULL, " ");
-            }
+    //     while(fgets(row, 256, inputFile)) { 
+    //         counter = 0; 
+    //         tokens = strtok(row, " ");
+    //         while (tokens != NULL) { 
+    //             // if (!checkDigits(tokens)) { 
+    //             //     printf("Error! Program cannot accept non-numeric inputs \n");
+    //             //     exit(0);
+    //             // }
+    //             counter++;
+    //             tokens = strtok(NULL, " ");
+    //         }
 
-            if (counter != 3) { 
-                printf("Error! There should be 3 integer inputs per line. \n");
-                exit(0);
-            }
-        }
+    //         if (counter != 3) { 
+    //             printf("Error! There should be 3 integer inputs per line. \n");
+    //             exit(0);
+    //         }
+    //     }
 
-        // get first line (X, Y, Z)
-        fscanf(inputFile,"%d",&XYZ[0]);
-        fscanf(inputFile,"%d",&XYZ[1]);
-        fscanf(inputFile,"%d",&XYZ[2]);
-
-        //error checking
-        if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
-            printf("Invalid input for X, Y and Z. Please rerun the program again.\n");
-            exit(0);
-        }
-
-        // loop all processes XYZ[1]=Y
-        for (i=0; i<XYZ[1]; i++) {
-            processes[i].processID = -1;
-            processes[i].arrivalTime = -1;
-            processes[i].totalExeTime = -1;
-            
-            fscanf(inputFile,"%d",&processes[i].processID);
-            fscanf(inputFile,"%d",&processes[i].arrivalTime);
-            fscanf(inputFile,"%d",&processes[i].totalExeTime);
-
-            if (processes[i].processID < 0 || processes[i].arrivalTime < 0 || processes[i].totalExeTime < 0) { 
-                printf("Invalid input for processes. Please rerun the program again.\n");
-                exit(0);
-            }
-
-            processes[i].currentExeTime = processes[i].totalExeTime;
-            processes[i].countStartEnd = 0;
-        }
-
-        processes[100].currentExeTime = 2147483647; // biggest value for int
-
-        fclose(inputFile);
-
-    } else {
-		printf ("%s not found.\n", fileName);
-        exit(0);
-    }
-
-
-    // if (inputFile != NULL) {
     //     // get first line (X, Y, Z)
     //     fscanf(inputFile,"%d",&XYZ[0]);
     //     fscanf(inputFile,"%d",&XYZ[1]);
@@ -627,10 +586,57 @@ int main () {
     //     processes[100].currentExeTime = 2147483647; // biggest value for int
 
     //     fclose(inputFile);
-	// } else {
+
+    // } else {
 	// 	printf ("%s not found.\n", fileName);
     //     exit(0);
     // }
+
+
+    if (inputFile != NULL) {
+        // get first line (X, Y, Z)
+        fscanf(inputFile,"%d",&XYZ[0]);
+        fscanf(inputFile,"%d",&XYZ[1]);
+        fscanf(inputFile,"%d",&XYZ[2]);
+
+        //error checking
+        if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
+            printf("Invalid input for X, Y and Z. Please rerun the program again.\n");
+            exit(0);
+        }
+
+        // loop all processes XYZ[1]=Y
+        for (i=0; i<XYZ[1]; i++) {
+            processes[i].processID = -1;
+            processes[i].arrivalTime = -1;
+            processes[i].totalExeTime = -1;
+            
+            fscanf(inputFile,"%d",&processes[i].processID);
+            fscanf(inputFile,"%d",&processes[i].arrivalTime);
+            fscanf(inputFile,"%d",&processes[i].totalExeTime);
+
+            if (processes[i].processID < 0 || processes[i].arrivalTime < 0 || processes[i].totalExeTime < 0) { 
+                printf("Invalid input for processes. Please rerun the program again.\n");
+                exit(0);
+            }
+
+            processes[i].currentExeTime = processes[i].totalExeTime;
+            processes[i].countStartEnd = 0;
+        }
+
+        // Y less than the number of processes
+        if (fscanf(inputFile,"%d",&temp)==1) {
+            printf("Y is less than the number of process lines. Please rerun the program again.\n");
+            exit(0);
+        }
+
+        processes[100].currentExeTime = 2147483647; // biggest value for int
+
+        fclose(inputFile);
+	} else {
+		printf ("%s not found.\n", fileName);
+        exit(0);
+    }
 
     switch (XYZ[0]) {
         // FCFS
