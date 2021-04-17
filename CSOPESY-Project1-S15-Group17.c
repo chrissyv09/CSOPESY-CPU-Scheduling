@@ -505,20 +505,11 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     printGanttChartPreemp(P, XYZ, findCount(P,XYZ)); 
 }
 
-// int checkDigits(char *input) { 
-//     while (*input) { 
-//         printf("char: %c \n", *input);
-//         if (isdigit(*input) && *input == '\n' && *input==' ')
-//             return 1;
-//         input++;
-//     }
-//     return 0;
-// }
 
 int main () { 
     char fileName[100];
     int XYZ[3];
-    int i, temp;
+    int i;
     struct Process processes[MAX_PROCESS_SIZE];
     FILE *inputFile;
     
@@ -558,12 +549,6 @@ int main () {
 
             processes[i].currentExeTime = processes[i].totalExeTime;
             processes[i].countStartEnd = 0;
-        }
-
-        // Y less than the number of processes
-        if (fscanf(inputFile,"%d",&temp)==1) {
-            printf("Y is less than the number of process lines. Please rerun the program again.\n");
-            exit(0);
         }
 
         processes[100].currentExeTime = 2147483647; // biggest value for int
