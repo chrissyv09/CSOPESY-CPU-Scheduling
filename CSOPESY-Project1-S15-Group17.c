@@ -10,25 +10,29 @@ Section: S15
 #include <ctype.h>
 #include <limits.h>
 
-
 int MAX_PROCESS_SIZE = 101;
+int MAX_QUEUE_SIZE = 5;
+
+struct StartEndTime {
+    int startTime;
+    int endTime;
+    int IOQueue; // 1 or 0 1-> 1/O. 0 -> queue
+    int queueID;
+};
 
 struct Process {
     int processID;
     int arrivalTime;
     int totalExeTime;
+    int IOBurstLength;
+    int IOBurstInterval;
     int turnAroundTime;
     int waitingTime;
-    int startTime; 
-    int endTime;
-    int startEndPremp[300][2];
+    struct StartEndTime startEnd[1000];
     int countStartEnd;
     int currentExeTime;
-};
-
-struct StartEndTime {
-    int startTime;
-    int endTime;
+    int currentQueue;
+    int accumulatedCPU;
 };
 
 typedef struct node {
@@ -41,6 +45,13 @@ typedef struct queue {
     node *head; 
     node *tail;
 } queue; 
+
+struct QueueProcess {
+    queue* q;
+    int queueID;
+    int priority;
+    int timeQuantum;
+};
 
 //initialize the head and tail to null
 queue* init_queue () {
@@ -87,67 +98,16 @@ int dequeue(queue *q) {
     return index;
 } 
 
-int findCount(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]){
+int findCount(struct Process P[MAX_PROCESS_SIZE], int XYS[3]){
     int i, count = 0;
 
-    for (i=0; i<XYZ[1]; i++)
+    for (i=0; i<XYS[1]; i++)
         count += P[i].countStartEnd;
 
     return count;
 }
 
-// works only for non-premptive
-void printGanttChart(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, j;
-    
-    printf("\nGantt Chart\n");
-
-    // first line
-    for (i=0; i<XYZ[1]; i++) 
-        printf("---------");
-    printf("\n|");
-
-    // processes
-    for (i=0; i<XYZ[1]; i++) {
-        if (i==0) {
-            // gap in the front
-            if (P[i].startTime!=0) 
-                printf("-------|");             
-        } else {
-            // gap in between
-            if (P[i].startTime != P[i-1].endTime)
-                printf("-------|");
-        }
-        printf("P%-7d|", P[i].processID);
-    }
-    printf("\n");
-
-    // last line
-    for (i=0; i<XYZ[1]; i++) 
-        printf("---------");
-    printf("\n");
-
-    // timeline
-    for (i=0; i<XYZ[1]; i++) {
-        if (i==0) {
-            printf("%-9d", 0);
-            if (P[i].startTime==0) 
-                printf("%-9d", P[i].endTime);
-            else // gap in front
-                printf("%-9d%-9d", P[i].startTime, P[i].endTime);
-        } else {
-            // gap in between
-            if (P[i].startTime != P[i-1].endTime) 
-                printf("%-9d%-9d", P[i].startTime, P[i].endTime); 
-
-            else 
-                printf("%-9d", P[i].endTime); 
-        }
-    }
-    printf("\n\n");
-}
-
-void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3], int count) {
+void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYS[3], int count) {
     int i, j, k, time = 0, found= 0, second = 0, index = 0, startEndIndex = 0, tempIndex = 0;
     struct StartEndTime tempTimeLine[count];
  
@@ -161,7 +121,7 @@ void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3], int c
     //processes
     for (i=0; i<count; i++) {
         found = 0;
-        for (j=0; j<XYZ[1] && !found; j++) {
+        for (j=0; j<XYS[1] && !found; j++) {
             for (k=0; k<P[j].countStartEnd && !found; k++) {
                 if (time == P[j].startEndPremp[k][0]) {
                     found = 1;
@@ -192,7 +152,7 @@ void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3], int c
         if (!found){
             second = P[100].currentExeTime;
             // printf("\n%d\n", second);
-            for (j=0; j<XYZ[1]; j++) {
+            for (j=0; j<XYS[1]; j++) {
                 for (k=0; k<P[j].countStartEnd; k++) 
                     if (P[j].startEndPremp[k][0] > time && P[j].startEndPremp[k][0] < second) {
                         second = P[j].startEndPremp[k][0]; 
@@ -238,27 +198,11 @@ void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3], int c
     printf("\n\n");
 }
 
-void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, sumWait = 0;
-
-    printf("\n");
-    for (i=0; i<XYZ[1]; i++) {
-        printf("P[%d]\nStart Time: %d End time: %d\n", P[i].processID, P[i].startTime, P[i].endTime);
-        printf("Waiting time: %d\n", P[i].waitingTime);
-        printf("Turnaround time: %d\n", P[i].turnAroundTime);
-        printf("************************************\n");
-
-        sumWait += P[i].waitingTime;
-    }
-
-    printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
-}
-
-void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int i, j, sumWait = 0;
 
     printf("\n");
-    for (i=0; i<XYZ[1]; i++) {
+    for (i=0; i<XYS[1]; i++) {
         printf("P[%d]\n", P[i].processID);
 
         for (j=0; j<P[i].countStartEnd; j++) 
@@ -271,14 +215,14 @@ void printProcessesPreemp(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         sumWait += P[i].waitingTime;
     }
 
-    printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYZ[1]);
+    printf("Average waiting time: %f\n\n", 1.0 * sumWait / XYS[1]);
 }
 
-void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int i, j;
     struct Process key;
      
-    for (i=1; i<XYZ[1]; i++) {
+    for (i=1; i<XYS[1]; i++) {
         key = P[i];
         j = i-1;
         while (j > -1 && P[j].arrivalTime > key.arrivalTime) {
@@ -289,153 +233,22 @@ void arrangeProcessArrivalTimes(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) 
     }
 }
 
-void firstComeFirstServe(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, time;
-
-    // sort arrival time (using insertion sort)
-    arrangeProcessArrivalTimes(P, XYZ);
-
-    // calculate turnaround time, waiting time, start time, end time
-    time = 0;
-    for (i=0; i<XYZ[1]; i++) { 
-        // computes start and end time
-        if (time >= P[i].arrivalTime) {
-            P[i].startTime = time;     
-            time += (P[i].totalExeTime); 
-        } else {
-            P[i].startTime = P[i].arrivalTime;
-            time = P[i].arrivalTime + P[i].totalExeTime; 
-        }  
-        P[i].endTime =  P[i].startTime + P[i].totalExeTime;
-        
-        // computes turnaround time
-        P[i].turnAroundTime = time - P[i].arrivalTime;
-
-        // waiting time
-        if (i == 0) 
-            P[i].waitingTime = 0;
-        else {
-            P[i].waitingTime = P[i].turnAroundTime - P[i].totalExeTime;
+void arrangeProcessQueuePriority(struct QueueProcess Q[MAX_QUEUE_SIZE], int XYS[3]) {
+    int i, j;
+    struct QueueProcess key;
+     
+    for (i=1; i<XYS[0]; i++) {
+        key = Q[i];
+        j = i-1;
+        while (j > -1 && Q[j].priority > key.priority) {
+            Q[j+1] = Q[j];
+            j--;
         }
+        Q[j+1] = key;
     }
-
-    printProcesses(P, XYZ);   
-    printGanttChart(P, XYZ); 
 }
 
-void nonPreemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int i, j, lowIndex, time, found;
-    struct Process temp;
-
-    // sort arrival time (using insertion sort)
-    arrangeProcessArrivalTimes(P, XYZ);
-
-    //sort burst time
-    time = 0;
-    i = 0;
-    while (i < XYZ[1]) {
-        found = 0;
-
-        // find lowest index
-        j=i;
-        lowIndex = j;
-
-        while (j < XYZ[1] && time >= P[j].arrivalTime) {
-            found = 1;
-
-            if (P[lowIndex].totalExeTime > P[j].totalExeTime) {
-                lowIndex = j;
-            }
-           j++;
-        }
-
-        if (!found) {
-            time++;
-        } else {
-            temp = P[i];
-            P[i] = P[lowIndex];
-            P[lowIndex] = temp;
-
-            P[i].startTime = time;
-            time += P[i].totalExeTime;
-            P[i].endTime = time;
-
-            P[i].turnAroundTime = P[i].endTime - P[i].arrivalTime;
-
-            // waiting time
-            if (i == 0) 
-                P[i].waitingTime = 0;
-            else {
-                P[i].waitingTime = P[i].turnAroundTime - P[i].totalExeTime;
-            }
-
-            i++;
-        }
-    }
-
-    printProcesses(P, XYZ);
-    printGanttChart(P, XYZ); 
-}
-
-void preemptiveShortestJobFirst(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
-    int time, i, j, lowIndex, pastLowIndex = -1, countStartEnd, found, start = 0; 
-
-    // sort arrival time (using insertion sort)
-    arrangeProcessArrivalTimes(P, XYZ);
-
-    i = 0;
-    time = 0;
-    for (time = 0; i < XYZ[1]; time++) {
-        lowIndex = 100; //process with the biggest current execution time
-        found = 0;
-
-        j = 0;
-        //find the lowest burst time at current time
-        while (j < XYZ[1] && time >= P[j].arrivalTime) {
-            found = 1;
-
-            if (P[lowIndex].currentExeTime > P[j].currentExeTime && P[j].currentExeTime > 0) {
-                lowIndex = j;
-            }
-            j++;
-        }
-
-        if (found) {
-            countStartEnd = P[lowIndex].countStartEnd;
-
-            // check if it is still the same process after time++
-            if (lowIndex == pastLowIndex) {
-                P[lowIndex].startEndPremp[countStartEnd][1]++;                      // increment end time since old process
-            } else {
-                // 
-                if (start && P[pastLowIndex].currentExeTime > 0) 
-                    P[pastLowIndex].countStartEnd++;                    // so that it would not increment when pastLowIndex is still -1 (increments the past low index since new process)
-                P[lowIndex].startEndPremp[countStartEnd][0] = time;     // set start time since new process
-                P[lowIndex].startEndPremp[countStartEnd][1] = time + 1;     // set end time since new process
-            }        
-            
-            //updating the execution time left
-            P[lowIndex].currentExeTime--;
-            pastLowIndex = lowIndex;
-            if (!start)
-                start = 1;      // signifies that CPU starts processing (there is pastLowIndex already)
-
-            //compute waiting time and turnaround time if no more execution time left 
-            if(P[lowIndex].currentExeTime == 0) {
-                i++;
-                countStartEnd = P[lowIndex].countStartEnd;
-                P[lowIndex].turnAroundTime = P[lowIndex].startEndPremp[countStartEnd][1] - P[lowIndex].arrivalTime;
-                P[lowIndex].waitingTime = P[lowIndex].turnAroundTime - P[lowIndex].totalExeTime;
-                P[lowIndex].countStartEnd++;    
-            }
-        }
-    }
-
-    printProcessesPreemp(P, XYZ);
-    printGanttChartPreemp(P, XYZ, findCount(P,XYZ)); 
-}
-
-void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
+void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int changei = 1; //not sure if needed but used for checking if index is changed
     int total = 0;
     int i, j, time, totalExe, countStartEnd, index; 
@@ -444,7 +257,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     queue* q = init_queue();
 
     // sort arrival time (using insertion sort)
-    arrangeProcessArrivalTimes(P, XYZ);
+    arrangeProcessArrivalTimes(P, XYS);
 
     //set i = 0 
     i = 0;
@@ -453,7 +266,7 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
     enqueue(q, i);
 
     //while i is less than the number of processes and while queue is not empty
-    while (i < XYZ[1] && !isEmpty(q)) { 
+    while (i < XYS[1] && !isEmpty(q)) { 
 
         index = dequeue(q);
 
@@ -468,18 +281,18 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         P[index].startEndPremp[countStartEnd][0] = time;
 
         //if less than quantum time
-        if (P[index].currentExeTime <= XYZ[2]) { 
+        if (P[index].currentExeTime <= XYS[2]) { 
             time = time + P[index].currentExeTime;
             P[index].currentExeTime = 0;
         } else { //if greater than quantum time
-            time = time + XYZ[2];
-            P[index].currentExeTime = P[index].currentExeTime - XYZ[2];
+            time = time + XYS[2];
+            P[index].currentExeTime = P[index].currentExeTime - XYS[2];
         }
         P[index].startEndPremp[countStartEnd][1] = time;
         P[index].countStartEnd++;
 
         //while the succeeding arrival times are within the total time 
-        while ((i+1) < XYZ[1] && P[i+1].arrivalTime <= time) { 
+        while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(q, (i+1));
             i++;
         }
@@ -494,22 +307,100 @@ void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYZ[3]) {
         }
 
         //if the processes are not yet finished (there is gap)
-        if (isEmpty(q) && i < (XYZ[1]-1)) { 
+        if (isEmpty(q) && i < (XYS[1]-1)) { 
             i++;
             changei = 1;
             enqueue(q, i);
         }
     }
 
-    printProcessesPreemp(P, XYZ);
-    printGanttChartPreemp(P, XYZ, findCount(P,XYZ)); 
+    // printProcessesPreemp(P, XYS);
+    // printGanttChartPreemp(P, XYS, findCount(P,XYS)); 
 }
+
+int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
+    int i, empty = 0;
+
+    for (i=0; i<XYS[0]; i++) {
+        if (isEmpty(Q[i].q)) {
+            empty = 1;
+        }
+    }
+
+    return empty;
+}
+
+void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
+    int total = 0, changei = 1;
+    int i, j, time, totalExe, found = 0, index, queueIndex, countStartEnd;
+
+    // sort arrival time of processes
+    arrangeProcessArrivalTimes(P, XYS);
+
+    // sort priority of queues
+    arrangeQueuePriority(Q, XYS);
+
+    i = 0;
+
+    //add process with the earliest arrival time to the top priority queue
+    enqueue(Q[0].q, i);
+
+    while (i < XYS[1] && !isAllQueueEmpty(Q, XYS)) { 
+        // FIXME: mamaya na yung gap uwu T_T
+        // for gap and starting processes (changei is originally 1)
+        if (changei) {
+            time = P[i].arrivalTime; 
+            changei = 0;
+        }
+
+        //add priority boost (S - XYS[2]) (move all the jobs in the system to the topmost queue)
+        //TODO:
+
+        // loop from the first priority queue to the last until a process is found
+        // FIXME: add cases where priority levels are equal
+        while (!isEmpty(Q[0].q)) { 
+            index = dequeue(Q[i].q);
+            queueIndex = later na
+        }
+
+        //run the process picked (BIG PART)
+        //set the start time of the process  (FROM ROUND ROBIN ALGO)
+        // FIXME: fix XYS to refer to the time quantum in the specific queue stated in the queue index
+        
+        countStartEnd = P[index].countStartEnd;
+        P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
+        P[index].startEnd[countStartEnd].queueID = queueIndex; // store the queue id
+        P[index].startEnd[countStartEnd].startTime = time;
+
+        // FIXME: consider I/O BURST AND INTERVAL
+
+        //if less than quantum time
+        if (P[index].currentExeTime <= Q[queueIndex].timeQuantum) { 
+            time = time + P[index].currentExeTime;
+            P[index].currentExeTime = 0;
+        } else { //if greater than quantum time
+            time = time + XYS[2];
+            P[index].currentExeTime = P[index].currentExeTime - XYS[2];
+        }
+        P[index].startEnd[countStartEnd]. = time;
+        P[index].countStartEnd++;
+
+        //
+        
+        i++;
+    }
+    
+    
+
+}
+
 
 int main () { 
     char fileName[100];
-    int XYZ[3];
+    int XYS[3];
     int i, temp;
     struct Process processes[MAX_PROCESS_SIZE];
+    struct QueueProcess listQueues[MAX_QUEUE_SIZE];
     FILE *inputFile;
     
     // ask input filename from user
@@ -520,28 +411,50 @@ int main () {
     inputFile = fopen(fileName,"rt");
 
     if (inputFile != NULL) {
-        // get first line (X, Y, Z)
-        fscanf(inputFile,"%d",&XYZ[0]);
-        fscanf(inputFile,"%d",&XYZ[1]);
-        fscanf(inputFile,"%d",&XYZ[2]);
+        // get first line (X, Y, S) X - number of queues Y - number of processes S - time for priority boost
+        fscanf(inputFile,"%d %d %d",&XYS[0], &XYS[1], &XYS[2]);
 
         //error checking
-        if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
-            printf("Invalid input for X, Y and Z. Please rerun the program again.\n");
+        if (XYS[0] < 2  || XYS[0] > 5 || XYS[1] < 3 || XYS[1] > 100 || XYS[2] < 0) { 
+            printf("Invalid input for X, Y and S. Please rerun the program again.\n");
             exit(0);
         }
 
-        // loop all processes XYZ[1]=Y
-        for (i=0; i<XYZ[1]; i++) {
+        // loop all queues XYS[0]=X
+        for (i=0; i<XYS[0]; i++) {
+            listQueues[i].queueID = -1;
+            listQueues[i].priority = -1;
+            listQueues[i].timeQuantum = -1;
+            
+            fscanf(inputFile,"%d",&listQueues[i].queueID);
+            fscanf(inputFile,"%d",&listQueues[i].priority);
+            fscanf(inputFile,"%d",&listQueues[i].timeQuantum);
+
+            //error checking
+            if (listQueues[i].queueID < 0 || listQueues[i].priority < 0 || listQueues[i].timeQuantum < 0) { 
+                printf("Invalid input for queues. Please rerun the program again.\n");
+                exit(0);
+            }
+
+            listQueues[i].q = init_queue();
+        }
+        
+        //loop all processes XYS[1] = Y
+        for (i=0; i<XYS[1]; i++) {
             processes[i].processID = -1;
             processes[i].arrivalTime = -1;
             processes[i].totalExeTime = -1;
+            processes[i].IOBurstLength = -1;
+            processes[i].IOBurstInterval = -1;
             
             fscanf(inputFile,"%d",&processes[i].processID);
             fscanf(inputFile,"%d",&processes[i].arrivalTime);
             fscanf(inputFile,"%d",&processes[i].totalExeTime);
+            fscanf(inputFile,"%d",&processes[i].IOBurstLength);
+            fscanf(inputFile,"%d",&processes[i].IOBurstInterval);
 
-            if (processes[i].processID < 0 || processes[i].arrivalTime < 0 || processes[i].totalExeTime < 0) { 
+            //error checking
+            if (processes[i].processID < 0 || processes[i].arrivalTime < 0 || processes[i].totalExeTime < 0 || processes[i].IOBurstLength < 0 || processes[i].IOBurstInterval < 0) { 
                 printf("Invalid input for processes. Please rerun the program again.\n");
                 exit(0);
             }
@@ -556,6 +469,7 @@ int main () {
             exit(0);
         }
 
+        // FIXME: check at the end if we need this
         processes[100].currentExeTime = 2147483647; // biggest value for int
 
         fclose(inputFile);
@@ -564,27 +478,7 @@ int main () {
         exit(0);
     }
 
-    switch (XYZ[0]) {
-        // FCFS
-        case 0:
-            XYZ[2] = 1;
-            firstComeFirstServe(processes, XYZ);
-            break;
-        // NSJF
-        case 1:
-            XYZ[2] = 1;
-            nonPreemptiveShortestJobFirst(processes, XYZ);
-            break;
-        // PSJF
-        case 2:
-            XYZ[2] = 1;
-            preemptiveShortestJobFirst(processes, XYZ);
-            break;
-        // RR 
-        case 3:
-            roundRobbin(processes, XYZ);
-            break;
-    }
+    multilevelFeedbackQueue(listQueues, processes, XYS);
     
     return 0;
 }
