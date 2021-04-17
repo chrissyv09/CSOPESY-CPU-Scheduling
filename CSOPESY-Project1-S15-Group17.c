@@ -529,6 +529,11 @@ int main () {
         if (XYZ[0] < 0 || XYZ[0] > 3 || XYZ[1] < 3 || XYZ[1] > 100 || XYZ[2] < 1 || XYZ[2] > 100) { 
             printf("Invalid input for X, Y and Z. Please rerun the program again.\n");
             exit(0);
+        } 
+
+        if ((XYZ[0] >= 0 && XYZ[0] < 3) && XYZ[2] != 1) {
+            printf("Time quantum should be set to 1 for CPU scheduling that are not Round Robin.\n");
+            exit(0);
         }
 
         // loop all processes XYZ[1]=Y
