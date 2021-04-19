@@ -364,7 +364,9 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             //TODO:
             while (l < XYS[0]) { 
                 while (!isEmpty(Q[l].q)) { 
-                    enqueue(Q[0].q, dequeue(Q[l].q));
+                    tempIndex = dequeue(Q[l].q);
+                    P[tempIndex].accumulatedCPU = 0;
+                    enqueue(Q[0].q, tempIndex);
                 }
                 l++;
             }
@@ -376,6 +378,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
                     enqueue(Q[P[k].currentQueue+1].q, k);
                     P[k].currentQueue += 1;
+                    P[index].accumulatedCPU = 0;
                 } else { 
                     enqueue(Q[P[k].currentQueue].q, k);
                 }
@@ -461,6 +464,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
                     enqueue(Q[queueIndex+1].q, index);
                     P[index].currentQueue = queueIndex+1;
+                    P[index].accumulatedCPU = 0;
                 }
                 // else place it back to the current queue
                 else {
