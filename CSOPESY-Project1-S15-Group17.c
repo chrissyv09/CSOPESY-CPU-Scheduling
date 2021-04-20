@@ -33,6 +33,7 @@ struct Process {
     int currentExeTime;
     int currentQueue;
     int accumulatedCPU;
+    int outside;
 };
 
 typedef struct node {
@@ -107,98 +108,6 @@ int findCount(struct Process P[MAX_PROCESS_SIZE], int XYS[3]){
     return count;
 }
 
-//TODO: don't delete first
-// void printGanttChartPreemp(struct Process P[MAX_PROCESS_SIZE], int XYS[3], int count) {
-//     int i, j, k, time = 0, found= 0, second = 0, index = 0, startEndIndex = 0, tempIndex = 0;
-//     struct StartEndTime tempTimeLine[count];
- 
-//     printf("\nGantt Chart\n");
-
-//     // first line
-//     for (i=0; i<count; i++) 
-//         printf("---------");
-//     printf("\n|");
-
-//     //processes
-//     for (i=0; i<count; i++) {
-//         found = 0;
-//         for (j=0; j<XYS[1] && !found; j++) {
-//             for (k=0; k<P[j].countStartEnd && !found; k++) {
-//                 if (time == P[j].startEndPremp[k][0]) {
-//                     found = 1;
-//                     printf("P%-7d|", P[j].processID);
-//                     time = P[j].startEndPremp[k][1];
-//                     tempTimeLine[tempIndex].startTime = P[j].startEndPremp[k][0];
-//                     tempTimeLine[tempIndex].endTime = P[j].startEndPremp[k][1];
-//                     tempIndex++;
-//                 }
-//             }
-//         }
-
-//         // printf("\n%d %d %d\n", i, found, time);
-
-//         // gap in front
-//         if (time == 0 && !found) {
-//             found = 1;
-//             printf("-------|");    
-//             printf("P%-7d|", P[0].processID);
-//             time = P[0].startEndPremp[0][1];
-
-//             tempTimeLine[tempIndex].startTime = P[0].startEndPremp[0][0];
-//             tempTimeLine[tempIndex].endTime = P[0].startEndPremp[0][1];
-//             tempIndex++;
-//         }
-
-//         // gap in between
-//         if (!found){
-//             second = P[100].currentExeTime;
-//             // printf("\n%d\n", second);
-//             for (j=0; j<XYS[1]; j++) {
-//                 for (k=0; k<P[j].countStartEnd; k++) 
-//                     if (P[j].startEndPremp[k][0] > time && P[j].startEndPremp[k][0] < second) {
-//                         second = P[j].startEndPremp[k][0]; 
-//                         index = j;
-//                         startEndIndex = k;
-//                     } 
-//             }
-
-//             printf("-------|");   
-//             printf("P%-7d|", P[index].processID);
-//             time = P[index].startEndPremp[startEndIndex][1];
-
-//             tempTimeLine[tempIndex].startTime = P[index].startEndPremp[startEndIndex][0];
-//             tempTimeLine[tempIndex].endTime = time;
-//             tempIndex++;
-//         }
-//     }
-//     printf("\n");
-    
-//     // last line
-//     for (i=0; i<count; i++) 
-//         printf("---------");
-//     printf("\n");
-
-//     // timeline
-//     for (i=0; i<tempIndex; i++) {
-//         if (i==0) {
-//             printf("%-9d", 0);
-//             if (tempTimeLine[i].startTime==0) 
-//                 printf("%-9d", tempTimeLine[i].endTime);
-//             else // gap in front
-//                 printf("%-9d%-9d", tempTimeLine[i].startTime, tempTimeLine[i].endTime);
-//         } else {
-//             // gap in between
-//             if (tempTimeLine[i].startTime != tempTimeLine[i-1].endTime) 
-//                 printf("%-9d%-9d", tempTimeLine[i].startTime, tempTimeLine[i].endTime); 
-
-//             else 
-//                 printf("%-9d", tempTimeLine[i].endTime); 
-//         }
-//     }
-
-//     printf("\n\n");
-// }
-
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int i, j, sumWait = 0;
 
@@ -255,77 +164,6 @@ void arrangeProcessQueuePriority(struct QueueProcess Q[MAX_QUEUE_SIZE], int XYS[
     }
 }
 
-//TODO: do not delete
-// void roundRobbin(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
-//     int changei = 1; //not sure if needed but used for checking if index is changed
-//     int total = 0;
-//     int i, j, time, totalExe, countStartEnd, index; 
-
-//     //for queue (initialize)
-//     queue* q = init_queue();
-
-//     // sort arrival time (using insertion sort)
-//     arrangeProcessArrivalTimes(P, XYS);
-
-//     //set i = 0 
-//     i = 0;
-
-//     // add the first process in the queue
-//     enqueue(q, i);
-
-//     //while i is less than the number of processes and while queue is not empty
-//     while (i < XYS[1] && !isEmpty(q)) { 
-
-//         index = dequeue(q);
-
-//         // for gap and starting processes (changei is originally 1)
-//         if (changei) {
-//             time = P[i].arrivalTime; 
-//             changei = 0;
-//         }
-
-//         //set the start time of the process    
-//         countStartEnd = P[index].countStartEnd;
-//         P[index].startEndPremp[countStartEnd][0] = time;
-
-//         //if less than quantum time
-//         if (P[index].currentExeTime <= XYS[2]) { 
-//             time = time + P[index].currentExeTime;
-//             P[index].currentExeTime = 0;
-//         } else { //if greater than quantum time
-//             time = time + XYS[2];
-//             P[index].currentExeTime = P[index].currentExeTime - XYS[2];
-//         }
-//         P[index].startEndPremp[countStartEnd][1] = time;
-//         P[index].countStartEnd++;
-
-//         //while the succeeding arrival times are within the total time 
-//         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
-//             enqueue(q, (i+1));
-//             i++;
-//         }
-
-//         //if total execution time is not yet 0, add it again to the queue
-//         if(P[index].currentExeTime != 0) { 
-//             enqueue(q, index);
-//         } else {
-//             //compute for the turn around time and waiting time
-//             P[index].turnAroundTime = time - P[index].arrivalTime;
-//             P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
-//         }
-
-//         //if the processes are not yet finished (there is gap)
-//         if (isEmpty(q) && i < (XYS[1]-1)) { 
-//             i++;
-//             changei = 1;
-//             enqueue(q, i);
-//         }
-//     }
-
-//     // printProcessesPreemp(P, XYS);
-//     // printGanttChartPreemp(P, XYS, findCount(P,XYS)); 
-// }
-
 int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
     int i, empty = 1; // assuming all queues are empty
 
@@ -340,7 +178,7 @@ int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int total = 0, changei = 1;
-    int i, j, k, l, time, totalExe, found = 0, index, tempIndex, queueIndex, countStartEnd, IO;
+    int i, j, k, l, time, totalExe, found = 0, index, tempIndex, queueIndex, countStartEnd, IO, tempS = XYS[2];
 
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
@@ -352,6 +190,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
     time = 0;
     //add process with the earliest arrival time to the top priority queue
     enqueue(Q[0].q, i);
+    P[0].outside = 0;
 
     while (i < XYS[1] && !isAllQueueEmpty(Q, XYS)) { 
         k = 0;
@@ -363,7 +202,8 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         //TODO: CHECK
         while (k < XYS[1]){
             countStartEnd = P[k].countStartEnd;
-            if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime >= time) {
+            if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime <= time && P[k].outside) {
+                printf("hi: %d k: %d time: %d\n", P[k].currentQueue, k, time);
                 if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
                     enqueue(Q[P[k].currentQueue+1].q, k);
                     P[k].currentQueue += 1;
@@ -371,22 +211,30 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 } else { 
                     enqueue(Q[P[k].currentQueue].q, k);
                 }
+                P[k].outside = 0;
             }
             k++;
         }
         
         //add priority boost (S - XYS[2]) (move all the jobs in the system to the topmost queue)
         //TODO:
-        if (time >= XYS[2]) {
+        if (time >= tempS) {
             //TODO:
             while (l < XYS[0]) { 
                 while (!isEmpty(Q[l].q)) { 
-                    tempIndex = dequeue(Q[l].q);
-                    P[tempIndex].accumulatedCPU = 0;
-                    enqueue(Q[0].q, tempIndex);
+                    // do not priority boost if the process is in the I/O
+                    if (!P[k].outside) {
+                        tempIndex = dequeue(Q[l].q);
+                        printf("2: %d\n", tempIndex);
+                        enqueue(Q[0].q, tempIndex);
+                        P[tempIndex].accumulatedCPU = 0;
+                        P[tempIndex].currentQueue = 0;
+                    }
                 }
                 l++;
             }
+
+            tempS += XYS[2]; // added this kasi every S yung priority boost
         }
 
         // loop from the first priority queue to the last until a process is found
@@ -399,14 +247,24 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             j++;
         }
 
-        // FIXME: mamaya na yung gap uwu T_T
+        tempIndex = 100;
+        // gap for when there are processes in I/O pa
+        if (isAllQueueEmpty(Q, XYS) && time){
+            for (j=0; j<XYS[1]; j++) {
+                if (P[j].currentExeTime != 0 && P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime > P[j].startEnd[P[j].countStartEnd-1].endTime && P[j].outside) {
+                    tempIndex = i;
+                }
+            }
+
+            index = tempIndex;
+            time = P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime;
+        }
+
         // for gap and starting processes (changei is originally 1)
         if (changei) {
             time = P[index].arrivalTime; 
             changei = 0;
         }
-
-        printf("2\n");
 
         //run the process picked (BIG PART)
         //set the start time of the process  (FROM ROUND ROBIN ALGO)  
@@ -418,7 +276,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         //if less than or equal to quantum time
         if (P[index].currentExeTime <= Q[queueIndex].timeQuantum) { 
             // if there is I/O burst
-            if (P[index].IOBurstInterval < P[index].currentExeTime) {
+            if (P[index].IOBurstInterval > 0 && P[index].IOBurstInterval < P[index].currentExeTime) {
                 time += P[index].IOBurstInterval;
                 P[index].currentExeTime -= P[index].IOBurstInterval;
                 IO = 1;
@@ -430,7 +288,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             
         } else { //if greater than quantum time
             // if there is I/O burst
-            if (P[index].IOBurstInterval < Q[queueIndex].timeQuantum) {
+            if (P[index].IOBurstInterval > 0 && P[index].IOBurstInterval < Q[queueIndex].timeQuantum) {
                 time += P[index].IOBurstInterval;
                 P[index].currentExeTime -= P[index].IOBurstInterval;
                 IO = 1;
@@ -453,12 +311,13 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             P[index].startEnd[countStartEnd].startTime = time;
             P[index].startEnd[countStartEnd].endTime = time + P[index].IOBurstLength;
             P[index].countStartEnd++;
+            P[index].outside = 1;
         }
 
         //while the succeeding arrival times are within the total time, add it to the highest priority queue
-        // FIXME: haven't double checked (COPY FROM RR)
         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(Q[0].q, (i+1));
+            P[i+1].outside = 0;
             i++;
         }
 
@@ -477,14 +336,14 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 }
             } 
         } else {
-            // FIXME: haven't double checked (COPY FROM RR)
             //compute for the turn around time and waiting time
+            // FIXME: recompute since there are I/O and other queue time
             P[index].turnAroundTime = time - P[index].arrivalTime;
             P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
         }
 
         // FIXME: haven't double checked (COPY FROM RR)
-        //if the processes are not yet finished (there is gap)
+        //if the processes are not yet finished (there is a gap)
         // if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
         //     i++;
         //     changei = 1;
@@ -566,14 +425,14 @@ int main () {
             processes[i].currentQueue = 0;
         }
 
+        processes[100].startEnd[processes[100].countStartEnd].endTime = 2147483647;
+        processes[100].countStartEnd++;
+
         // Y less than the number of processes
         if (fscanf(inputFile,"%d",&temp)==1) {
             printf("Y is less than the number of process lines. Please rerun the program again.\n");
             exit(0);
         }
-
-        // FIXME: check at the end if we need this
-        processes[100].currentExeTime = 2147483647; // biggest value for int
 
         fclose(inputFile);
 	} else {
