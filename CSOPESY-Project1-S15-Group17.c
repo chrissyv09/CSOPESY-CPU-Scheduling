@@ -327,11 +327,11 @@ void arrangeProcessQueuePriority(struct QueueProcess Q[MAX_QUEUE_SIZE], int XYS[
 // }
 
 int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
-    int i, empty = 0;
+    int i, empty = 1; // assuming all queues are empty
 
     for (i=0; i<XYS[0]; i++) {
-        if (isEmpty(Q[i].q)) {
-            empty = 1;
+        if (!isEmpty(Q[i].q)) {
+            empty = 0; // found a queue that is not empty
         }
     }
 
@@ -349,7 +349,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
     arrangeProcessQueuePriority(Q, XYS);
 
     i = 0;
-    j = 0;
+    time = 0;
     //add process with the earliest arrival time to the top priority queue
     enqueue(Q[0].q, i);
 
@@ -357,7 +357,24 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         k = 0;
         IO = 0;
         l = 1; //start in the next queue
+        found = 0; //finding the next process to execute
+        j = 0;
 
+        //TODO: CHECK
+        while (k < XYS[1]){
+            countStartEnd = P[k].countStartEnd;
+            if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime >= time) {
+                if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
+                    enqueue(Q[P[k].currentQueue+1].q, k);
+                    P[k].currentQueue += 1;
+                    P[index].accumulatedCPU = 0;
+                } else { 
+                    enqueue(Q[P[k].currentQueue].q, k);
+                }
+            }
+            k++;
+        }
+        
         //add priority boost (S - XYS[2]) (move all the jobs in the system to the topmost queue)
         //TODO:
         if (time >= XYS[2]) {
@@ -370,20 +387,6 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 }
                 l++;
             }
-        }
-
-        //TODO: CHECK
-        while (k < XYS[1]){
-            if (P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime >= time) {
-                if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
-                    enqueue(Q[P[k].currentQueue+1].q, k);
-                    P[k].currentQueue += 1;
-                    P[index].accumulatedCPU = 0;
-                } else { 
-                    enqueue(Q[P[k].currentQueue].q, k);
-                }
-            }
-            k++;
         }
 
         // loop from the first priority queue to the last until a process is found
@@ -402,6 +405,8 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             time = P[index].arrivalTime; 
             changei = 0;
         }
+
+        printf("2\n");
 
         //run the process picked (BIG PART)
         //set the start time of the process  (FROM ROUND ROBIN ALGO)  
@@ -480,11 +485,11 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 
         // FIXME: haven't double checked (COPY FROM RR)
         //if the processes are not yet finished (there is gap)
-        if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
-            i++;
-            changei = 1;
+        // if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
+        //     i++;
+        //     changei = 1;
             // enqueue(q, i); #FIXME:
-        }
+        // }
     }
 
     printProcesses(P, XYS);
