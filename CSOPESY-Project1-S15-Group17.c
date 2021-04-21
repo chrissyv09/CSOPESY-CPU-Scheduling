@@ -99,13 +99,13 @@ int dequeue(queue *q) {
     return index;
 } 
 
-int findCount(struct Process P[MAX_PROCESS_SIZE], int XYS[3]){
-    int i, count = 0;
+int queue_head(queue *q){
 
-    for (i=0; i<XYS[1]; i++)
-        count += P[i].countStartEnd;
-
-    return count;
+    if (q->head == NULL) {
+        return -1;
+    } else {
+        return q->head->index;
+    }
 }
 
 void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
@@ -126,6 +126,8 @@ void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
 
         printf("Waiting time: %d\n", P[i].waitingTime);
         printf("Turnaround time: %d\n", P[i].turnAroundTime);
+        // FIXME: to be removed
+        printf("Current Exe time: %d\n", P[i].currentExeTime);
         printf("************************************\n");
 
         sumWait += P[i].waitingTime;
@@ -178,7 +180,7 @@ int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int total = 0, changei = 1;
-    int i, j, k, l, time, totalExe, found = 0, index, tempIndex, queueIndex, countStartEnd, IO, tempS = XYS[2];
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime;
 
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
@@ -190,11 +192,9 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
     time = 0;
     //add process with the earliest arrival time to the top priority queue
     enqueue(Q[0].q, i);
-    P[0].outside = 0;
 
-    while (i < XYS[1] && !isAllQueueEmpty(Q, XYS)) { 
+    for (time=0;(i < XYS[1] && !isAllQueueEmpty(Q, XYS));time++) { 
         k = 0;
-        IO = 0;
         l = 1; //start in the next queue
         found = 0; //finding the next process to execute
         j = 0;
@@ -211,21 +211,27 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 } else { 
                     enqueue(Q[P[k].currentQueue].q, k);
                 }
+
+                if (P[k].currentQueue < P[index].currentQueue)
+                    dequeue(Q[P[index].currentQueue].q);
+
                 P[k].outside = 0;
             }
             k++;
         }
         
         //add priority boost (S - XYS[2]) (move all the jobs in the system to the topmost queue)
+        if (time >= 10) {
+            printf("time: %d huhuh: %d %d\n", time, pastIndex, index);
+        }
         //TODO:
-        if (time >= tempS) {
-            //TODO:
+        if (time >= tempS && running && pastIndex != index) {
             while (l < XYS[0]) { 
                 while (!isEmpty(Q[l].q)) { 
                     // do not priority boost if the process is in the I/O
                     if (!P[k].outside) {
+                        printf("time: %d\n", time);
                         tempIndex = dequeue(Q[l].q);
-                        printf("2: %d\n", tempIndex);
                         enqueue(Q[0].q, tempIndex);
                         P[tempIndex].accumulatedCPU = 0;
                         P[tempIndex].currentQueue = 0;
@@ -239,10 +245,12 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 
         // loop from the first priority queue to the last until a process is found
         while (j < XYS[0] && !found) { 
+            printf("4\n");
             if (!isEmpty(Q[j].q)) {
-                index = dequeue(Q[j].q); 
+                index = queue_head(Q[j].q);     // get the top of the head only (don't remove from the queue)
                 queueIndex = j;
                 found = 1;
+                printf("2: %d time: %d\n", index, time);
             }
             j++;
         }
@@ -266,73 +274,70 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             changei = 0;
         }
 
-        //run the process picked (BIG PART)
-        //set the start time of the process  (FROM ROUND ROBIN ALGO)  
+        //run the process picked (BIG PART)¯¯
         countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
-        P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
-        P[index].startEnd[countStartEnd].queueID = queueIndex; // store the queue id
-        P[index].startEnd[countStartEnd].startTime = time;
 
-        //if less than or equal to quantum time
-        if (P[index].currentExeTime <= Q[queueIndex].timeQuantum) { 
-            // if there is I/O burst
-            if (P[index].IOBurstInterval > 0 && P[index].IOBurstInterval < P[index].currentExeTime) {
-                time += P[index].IOBurstInterval;
-                P[index].currentExeTime -= P[index].IOBurstInterval;
-                IO = 1;
-            // there is no I/O burst
-            } else {
-                time += P[index].currentExeTime;
-                P[index].currentExeTime = 0;
-            }
-            
-        } else { //if greater than quantum time
-            // if there is I/O burst
-            if (P[index].IOBurstInterval > 0 && P[index].IOBurstInterval < Q[queueIndex].timeQuantum) {
-                time += P[index].IOBurstInterval;
-                P[index].currentExeTime -= P[index].IOBurstInterval;
-                IO = 1;
-            // there is no I/O burst
-            } else {
-                time += Q[queueIndex].timeQuantum;
-                P[index].currentExeTime -= Q[queueIndex].timeQuantum;
-            }
+        if (index == pastIndex){
+            P[index].startEnd[countStartEnd].endTime++;
+        } else {
+            if (running && P[pastIndex].currentExeTime > 0 && !P[pastIndex].outside)
+                P[pastIndex].countStartEnd++;
+
+            P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
+            P[index].startEnd[countStartEnd].queueID = queueIndex; // store the queue id
+            P[index].startEnd[countStartEnd].startTime = time;
+            P[index].startEnd[countStartEnd].endTime = time + 1;
         }
 
-        //processed in the queue first before I/O
-        P[index].accumulatedCPU += (time - P[index].startEnd[countStartEnd].startTime);
-        P[index].startEnd[countStartEnd].endTime = time;
-        P[index].countStartEnd++;
+        printf("3\n");
 
-        // if there is an IO, compute for the start and end time for it
-        if (IO) {
+        P[index].currentExeTime--;
+        P[index].accumulatedCPU++;
+        pastIndex = index;
+
+        if (!running)
+            running = 1;
+
+        currentCPUTime = P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime;
+        // if there is I/O, enter this statement
+        if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime < Q[queueIndex].timeQuantum) {
+            P[index].outside = 1;
+            dequeue(Q[queueIndex].q);
+            P[index].countStartEnd++;
+
+            // computes for the start and end time for it
             countStartEnd = P[index].countStartEnd;
             P[index].startEnd[countStartEnd].IOQueue = 1; // meaning the startend time is for IO
-            P[index].startEnd[countStartEnd].startTime = time;
-            P[index].startEnd[countStartEnd].endTime = time + P[index].IOBurstLength;
+            P[index].startEnd[countStartEnd].startTime =  P[index].startEnd[countStartEnd-1].endTime;
+            P[index].startEnd[countStartEnd].endTime = P[index].startEnd[countStartEnd].startTime + P[index].IOBurstLength;
             P[index].countStartEnd++;
-            P[index].outside = 1;
         }
+
+        printf("5\n");
 
         //while the succeeding arrival times are within the total time, add it to the highest priority queue
         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(Q[0].q, (i+1));
-            P[i+1].outside = 0;
             i++;
         }
 
+        printf("6\n");
+
         //if total execution time is not yet 0, add it again to one of the queues
         if(P[index].currentExeTime != 0) { 
-            if (!IO) { 
+            if (!P[index].outside) { 
                 //if accumulated CPU reach the current queue demote the process to the next lowest
                 if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
-                    enqueue(Q[queueIndex+1].q, index);
-                    P[index].currentQueue = queueIndex+1;
+                    dequeue(Q[queueIndex].q);
+                    // add this so it would not go lower than the available queues
+                        if (queueIndex + 1 >= XYS[0]) {
+                            enqueue(Q[queueIndex].q, index);
+                        } else { 
+                            enqueue(Q[queueIndex+1].q, index);
+                            P[index].currentQueue = queueIndex+1;
+                        }
+                    
                     P[index].accumulatedCPU = 0;
-                }
-                // else place it back to the current queue
-                else {
-                    enqueue(Q[queueIndex].q, index);
                 }
             } 
         } else {
@@ -342,6 +347,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
         }
 
+        printf("8\n");
         // FIXME: haven't double checked (COPY FROM RR)
         //if the processes are not yet finished (there is a gap)
         // if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
@@ -349,6 +355,9 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         //     changei = 1;
             // enqueue(q, i); #FIXME:
         // }
+        if (time % 15 == 0) {
+            printProcesses(P, XYS);
+        }
     }
 
     printProcesses(P, XYS);
@@ -423,6 +432,7 @@ int main () {
             processes[i].countStartEnd = 0;
             processes[i].accumulatedCPU = 0;
             processes[i].currentQueue = 0;
+            processes[i].outside = 0;
         }
 
         processes[100].startEnd[processes[100].countStartEnd].endTime = 2147483647;
