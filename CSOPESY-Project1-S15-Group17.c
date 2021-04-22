@@ -180,8 +180,7 @@ int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int total = 0, changei = 1;
-    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime;
-
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0;
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
 
@@ -195,25 +194,29 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 
     for (time=0;(i < XYS[1] && !isAllQueueEmpty(Q, XYS));time++) { 
         k = 0;
-        l = 1; //start in the next queue
-        found = 0; //finding the next process to execute
-        j = 0;
-
-        //TODO: CHECK
         while (k < XYS[1]){
             countStartEnd = P[k].countStartEnd;
             if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime <= time && P[k].outside) {
-                printf("hi: %d k: %d time: %d\n", P[k].currentQueue, k, time);
+
                 if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
-                    enqueue(Q[P[k].currentQueue+1].q, k);
-                    P[k].currentQueue += 1;
-                    P[index].accumulatedCPU = 0;
+                    if (P[k].currentQueue + 1 >= XYS[0]) {
+                        enqueue(Q[P[k].currentQueue].q, k);
+                    } else { 
+                        enqueue(Q[P[k].currentQueue+1].q, k);
+                        P[k].currentQueue += 1;
+                    }
+                   
+                    P[k].accumulatedCPU = 0;
                 } else { 
                     enqueue(Q[P[k].currentQueue].q, k);
                 }
 
-                if (P[k].currentQueue < P[index].currentQueue)
+                // if the processes coming back from I/O has higher priority then pre-emp and add it back to the queue, do this only once
+                if (P[k].currentQueue < P[index].currentQueue && !done) {
                     dequeue(Q[P[index].currentQueue].q);
+                    enqueue(Q[P[index].currentQueue].q, index);
+                    done = 1;
+                }
 
                 P[k].outside = 0;
             }
@@ -221,21 +224,14 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         }
         
         //add priority boost (S - XYS[2]) (move all the jobs in the system to the topmost queue)
-        if (time >= 10) {
-            printf("time: %d huhuh: %d %d\n", time, pastIndex, index);
-        }
-        //TODO:
-        if (time >= tempS && running && pastIndex != index) {
+        l = 1; //start in the next queue
+        if (time >= tempS && done) {
             while (l < XYS[0]) { 
                 while (!isEmpty(Q[l].q)) { 
-                    // do not priority boost if the process is in the I/O
-                    if (!P[k].outside) {
-                        printf("time: %d\n", time);
-                        tempIndex = dequeue(Q[l].q);
-                        enqueue(Q[0].q, tempIndex);
-                        P[tempIndex].accumulatedCPU = 0;
-                        P[tempIndex].currentQueue = 0;
-                    }
+                    tempIndex = dequeue(Q[l].q);
+                    enqueue(Q[0].q, tempIndex);
+                    P[tempIndex].accumulatedCPU = 0;
+                    P[tempIndex].currentQueue = 0;
                 }
                 l++;
             }
@@ -244,28 +240,17 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         }
 
         // loop from the first priority queue to the last until a process is found
+        j = 0;
+        found = 0; //finding the next process to execute
         while (j < XYS[0] && !found) { 
-            printf("4\n");
             if (!isEmpty(Q[j].q)) {
+
                 index = queue_head(Q[j].q);     // get the top of the head only (don't remove from the queue)
                 queueIndex = j;
                 found = 1;
-                printf("2: %d time: %d\n", index, time);
+                done = 0;
             }
             j++;
-        }
-
-        tempIndex = 100;
-        // gap for when there are processes in I/O pa
-        if (isAllQueueEmpty(Q, XYS) && time){
-            for (j=0; j<XYS[1]; j++) {
-                if (P[j].currentExeTime != 0 && P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime > P[j].startEnd[P[j].countStartEnd-1].endTime && P[j].outside) {
-                    tempIndex = i;
-                }
-            }
-
-            index = tempIndex;
-            time = P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime;
         }
 
         // for gap and starting processes (changei is originally 1)
@@ -274,7 +259,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             changei = 0;
         }
 
-        //run the process picked (BIG PART)¯¯
+        //run the process picked (BIG PART)
         countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
 
         if (index == pastIndex){
@@ -284,24 +269,24 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 P[pastIndex].countStartEnd++;
 
             P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
-            P[index].startEnd[countStartEnd].queueID = queueIndex; // store the queue id
+            P[index].startEnd[countStartEnd].queueID = Q[queueIndex].queueID; // store the queue id
             P[index].startEnd[countStartEnd].startTime = time;
             P[index].startEnd[countStartEnd].endTime = time + 1;
         }
 
-        printf("3\n");
-
-        P[index].currentExeTime--;
-        P[index].accumulatedCPU++;
+        P[index].currentExeTime -= 1;
+        P[index].accumulatedCPU += 1;
         pastIndex = index;
 
         if (!running)
             running = 1;
 
         currentCPUTime = P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime;
+
         // if there is I/O, enter this statement
-        if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime < Q[queueIndex].timeQuantum) {
+        if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime <= Q[queueIndex].timeQuantum && P[index].currentExeTime != 0) {
             P[index].outside = 1;
+            done = 1;
             dequeue(Q[queueIndex].q);
             P[index].countStartEnd++;
 
@@ -313,23 +298,19 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             P[index].countStartEnd++;
         }
 
-        printf("5\n");
-
         //while the succeeding arrival times are within the total time, add it to the highest priority queue
         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(Q[0].q, (i+1));
             i++;
         }
 
-        printf("6\n");
-
         //if total execution time is not yet 0, add it again to one of the queues
-        if(P[index].currentExeTime != 0) { 
+        if (P[index].currentExeTime != 0) { 
             if (!P[index].outside) { 
                 //if accumulated CPU reach the current queue demote the process to the next lowest
                 if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
                     dequeue(Q[queueIndex].q);
-                    // add this so it would not go lower than the available queues
+                    // add this so it would not go to lower than the available queues
                         if (queueIndex + 1 >= XYS[0]) {
                             enqueue(Q[queueIndex].q, index);
                         } else { 
@@ -338,16 +319,42 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                         }
                     
                     P[index].accumulatedCPU = 0;
-                }
+                    done = 1;
+                }   
             } 
         } else {
             //compute for the turn around time and waiting time
-            // FIXME: recompute since there are I/O and other queue time
-            P[index].turnAroundTime = time - P[index].arrivalTime;
+            dequeue(Q[queueIndex].q);
+            
+            P[index].countStartEnd++;
+            done = 1;
+
+            P[index].turnAroundTime = time + 1 - P[index].arrivalTime;
             P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
+
+            for (j=0;j<P[index].countStartEnd;j++) {
+                // I/O does not count in the waiting time
+                if (P[index].startEnd[j].IOQueue == 1) {
+                    P[index].waitingTime -= P[index].startEnd[j].endTime - P[index].startEnd[j].startTime;
+                }
+            }
+            
         }
 
-        printf("8\n");
+        //TODO: RECHECK
+        tempIndex = 100;
+        // gap for when there are processes in I/O pa and/or have not arrived yet
+        if (isAllQueueEmpty(Q, XYS) && time){
+            for (j=0; j<XYS[1]; j++) {
+                if (P[j].currentExeTime != 0 && P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime > P[j].startEnd[P[j].countStartEnd-1].endTime && P[j].outside) {
+                    tempIndex = i;
+                }
+            }
+
+            index = tempIndex;
+            time = P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime;
+        }
+
         // FIXME: haven't double checked (COPY FROM RR)
         //if the processes are not yet finished (there is a gap)
         // if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
@@ -355,7 +362,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         //     changei = 1;
             // enqueue(q, i); #FIXME:
         // }
-        if (time % 15 == 0) {
+        if (time % 22 == 0) {
             printProcesses(P, XYS);
         }
     }
