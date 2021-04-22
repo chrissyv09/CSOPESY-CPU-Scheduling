@@ -126,8 +126,6 @@ void printProcesses(struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
 
         printf("Waiting time: %d\n", P[i].waitingTime);
         printf("Turnaround time: %d\n", P[i].turnAroundTime);
-        // FIXME: to be removed
-        printf("Current Exe time: %d\n", P[i].currentExeTime);
         printf("************************************\n");
 
         sumWait += P[i].waitingTime;
@@ -178,9 +176,20 @@ int isAllQueueEmpty (struct QueueProcess Q[MAX_PROCESS_SIZE], int XYS[3]) {
     return empty;
 }
 
+int isAllProcessesFinish (struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
+    int j;
+
+    for (j=0; j<XYS[1];j++) {
+        if (P[j].currentExeTime != 0)
+            return 0;
+    }
+
+    return 1; // assuming all processes are done
+}
+
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int total = 0, changei = 1;
-    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0;
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, tempTime;
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
 
@@ -192,8 +201,16 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
     //add process with the earliest arrival time to the top priority queue
     enqueue(Q[0].q, i);
 
-    for (time=0;(i < XYS[1] && !isAllQueueEmpty(Q, XYS));time++) { 
+    for (time=0;(i < XYS[1] && (!isAllQueueEmpty(Q, XYS) || !isAllProcessesFinish(P, XYS)));time++) { 
+
+        //while the succeeding arrival times are within the total time, add it to the highest priority queue
+        while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
+            enqueue(Q[0].q, (i+1));
+            i++;
+        }
+
         k = 0;
+        preempt = 0;
         while (k < XYS[1]){
             countStartEnd = P[k].countStartEnd;
             if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime <= time && P[k].outside) {
@@ -212,10 +229,10 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 }
 
                 // if the processes coming back from I/O has higher priority then pre-emp and add it back to the queue, do this only once
-                if (P[k].currentQueue < P[index].currentQueue && !done) {
+                if (P[k].currentQueue < P[index].currentQueue && !preempt) {
                     dequeue(Q[P[index].currentQueue].q);
                     enqueue(Q[P[index].currentQueue].q, index);
-                    done = 1;
+                    preempt = 1;
                 }
 
                 P[k].outside = 0;
@@ -253,117 +270,96 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             j++;
         }
 
-        // for gap and starting processes (changei is originally 1)
-        if (changei) {
-            time = P[index].arrivalTime; 
-            changei = 0;
-        }
-
-        //run the process picked (BIG PART)
-        countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
-
-        if (index == pastIndex){
-            P[index].startEnd[countStartEnd].endTime++;
-        } else {
-            if (running && P[pastIndex].currentExeTime > 0 && !P[pastIndex].outside)
-                P[pastIndex].countStartEnd++;
-
-            P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
-            P[index].startEnd[countStartEnd].queueID = Q[queueIndex].queueID; // store the queue id
-            P[index].startEnd[countStartEnd].startTime = time;
-            P[index].startEnd[countStartEnd].endTime = time + 1;
-        }
-
-        P[index].currentExeTime -= 1;
-        P[index].accumulatedCPU += 1;
-        pastIndex = index;
-
-        if (!running)
-            running = 1;
-
-        currentCPUTime = P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime;
-
-        // if there is I/O, enter this statement
-        if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime <= Q[queueIndex].timeQuantum && P[index].currentExeTime != 0) {
-            P[index].outside = 1;
-            done = 1;
-            dequeue(Q[queueIndex].q);
-            P[index].countStartEnd++;
-
-            // computes for the start and end time for it
-            countStartEnd = P[index].countStartEnd;
-            P[index].startEnd[countStartEnd].IOQueue = 1; // meaning the startend time is for IO
-            P[index].startEnd[countStartEnd].startTime =  P[index].startEnd[countStartEnd-1].endTime;
-            P[index].startEnd[countStartEnd].endTime = P[index].startEnd[countStartEnd].startTime + P[index].IOBurstLength;
-            P[index].countStartEnd++;
-        }
-
-        //while the succeeding arrival times are within the total time, add it to the highest priority queue
-        while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
-            enqueue(Q[0].q, (i+1));
-            i++;
-        }
-
-        //if total execution time is not yet 0, add it again to one of the queues
-        if (P[index].currentExeTime != 0) { 
-            if (!P[index].outside) { 
-                //if accumulated CPU reach the current queue demote the process to the next lowest
-                if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
-                    dequeue(Q[queueIndex].q);
-                    // add this so it would not go to lower than the available queues
-                        if (queueIndex + 1 >= XYS[0]) {
-                            enqueue(Q[queueIndex].q, index);
-                        } else { 
-                            enqueue(Q[queueIndex+1].q, index);
-                            P[index].currentQueue = queueIndex+1;
-                        }
-                    
-                    P[index].accumulatedCPU = 0;
-                    done = 1;
-                }   
-            } 
-        } else {
-            //compute for the turn around time and waiting time
-            dequeue(Q[queueIndex].q);
-            
-            P[index].countStartEnd++;
-            done = 1;
-
-            P[index].turnAroundTime = time + 1 - P[index].arrivalTime;
-            P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
-
-            for (j=0;j<P[index].countStartEnd;j++) {
-                // I/O does not count in the waiting time
-                if (P[index].startEnd[j].IOQueue == 1) {
-                    P[index].waitingTime -= P[index].startEnd[j].endTime - P[index].startEnd[j].startTime;
-                }
-            }
-            
-        }
-
-        //TODO: RECHECK
-        tempIndex = 100;
-        // gap for when there are processes in I/O pa and/or have not arrived yet
-        if (isAllQueueEmpty(Q, XYS) && time){
-            for (j=0; j<XYS[1]; j++) {
-                if (P[j].currentExeTime != 0 && P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime > P[j].startEnd[P[j].countStartEnd-1].endTime && P[j].outside) {
-                    tempIndex = i;
-                }
+        if (found){
+            // for gap in starting processes
+            if (changei) {
+                time = P[index].arrivalTime; 
+                changei = 0;
             }
 
-            index = tempIndex;
-            time = P[tempIndex].startEnd[P[tempIndex].countStartEnd-1].endTime;
-        }
+            //run the process picked (BIG PART)
+            countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
 
-        // FIXME: haven't double checked (COPY FROM RR)
-        //if the processes are not yet finished (there is a gap)
-        // if (!isAllQueueEmpty(Q, XYS) && i < (XYS[1]-1)) { 
-        //     i++;
-        //     changei = 1;
-            // enqueue(q, i); #FIXME:
-        // }
-        if (time % 22 == 0) {
-            printProcesses(P, XYS);
+            if (index == pastIndex){
+                P[index].startEnd[countStartEnd].endTime++;
+            } else {
+                if (running && P[pastIndex].currentExeTime > 0 && !P[pastIndex].outside)
+                    P[pastIndex].countStartEnd++;
+
+                P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
+                P[index].startEnd[countStartEnd].queueID = Q[queueIndex].queueID; // store the queue id
+                P[index].startEnd[countStartEnd].startTime = time;
+                P[index].startEnd[countStartEnd].endTime = time + 1;
+            }
+
+            P[index].currentExeTime -= 1;
+            P[index].accumulatedCPU += 1;
+            pastIndex = index;
+
+            if (!running)
+                running = 1;
+
+            currentCPUTime = P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime;
+
+            // if there is I/O, enter this statement
+            if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime <= Q[queueIndex].timeQuantum && P[index].currentExeTime != 0) {
+                P[index].outside = 1;
+                done = 1;
+                dequeue(Q[queueIndex].q);
+                P[index].countStartEnd++;
+
+                // computes for the start and end time for it
+                countStartEnd = P[index].countStartEnd;
+                P[index].startEnd[countStartEnd].IOQueue = 1; // meaning the startend time is for IO
+                P[index].startEnd[countStartEnd].startTime =  P[index].startEnd[countStartEnd-1].endTime;
+                P[index].startEnd[countStartEnd].endTime = P[index].startEnd[countStartEnd].startTime + P[index].IOBurstLength;
+                P[index].countStartEnd++;
+            }
+
+            //if total execution time is not yet 0, add it again to one of the queues
+            if (P[index].currentExeTime != 0) { 
+                if (!P[index].outside) { 
+                    //if accumulated CPU reach the current queue demote the process to the next lowest
+                    if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
+                        dequeue(Q[queueIndex].q);
+                        // add this so it would not go to lower than the available queues
+                            if (queueIndex + 1 >= XYS[0]) {
+                                enqueue(Q[queueIndex].q, index);
+                            } else { 
+                                enqueue(Q[queueIndex+1].q, index);
+                                P[index].currentQueue = queueIndex+1;
+                            }
+                        
+                        P[index].accumulatedCPU = 0;
+                        done = 1;
+                    }   
+                } 
+            } else {
+                //compute for the turn around time and waiting time
+                dequeue(Q[queueIndex].q);
+                
+                P[index].countStartEnd++;
+                done = 1;
+
+                P[index].turnAroundTime = time + 1 - P[index].arrivalTime;
+                P[index].waitingTime = P[index].turnAroundTime - P[index].totalExeTime;
+
+                for (j=0;j<P[index].countStartEnd;j++) {
+                    // I/O does not count in the waiting time
+                    if (P[index].startEnd[j].IOQueue == 1) {
+                        P[index].waitingTime -= (P[index].startEnd[j].endTime - P[index].startEnd[j].startTime);
+                    }
+                }
+
+                // incase waiting time become negative
+                if (P[index].waitingTime < 0)
+                    P[index].waitingTime = 0;
+                
+            }
+        } else {
+            index = -1;
+            pastIndex = -1;
+            done = 1;
         }
     }
 
