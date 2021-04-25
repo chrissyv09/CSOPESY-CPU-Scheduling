@@ -209,6 +209,24 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             i++;
         }
 
+        // place here para arriving process will come first before putting these in the queue 
+        if (index != -1 && !P[index].outside && P[index].currentExeTime != 0) { 
+            //if accumulated CPU reach the current queue demote the process to the next lowest
+            if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
+                dequeue(Q[queueIndex].q);
+                // add this so it would not go to lower than the available queues
+                    if (queueIndex + 1 >= XYS[0]) {
+                        enqueue(Q[queueIndex].q, index);
+                    } else { 
+                        enqueue(Q[queueIndex+1].q, index);
+                        P[index].currentQueue = queueIndex+1;
+                    }
+                
+                P[index].accumulatedCPU = 0;
+                done = 1;
+            }   
+        } 
+
         k = 0;
         preempt = 0;
         while (k < XYS[1]){
@@ -292,8 +310,8 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 P[index].startEnd[countStartEnd].endTime = time + 1;
             }
 
-            P[index].currentExeTime -= 1;
-            P[index].accumulatedCPU += 1;
+            P[index].currentExeTime--;
+            P[index].accumulatedCPU++;
             pastIndex = index;
 
             if (!running)
@@ -317,24 +335,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             }
 
             //if total execution time is not yet 0, add it again to one of the queues
-            if (P[index].currentExeTime != 0) { 
-                if (!P[index].outside) { 
-                    //if accumulated CPU reach the current queue demote the process to the next lowest
-                    if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
-                        dequeue(Q[queueIndex].q);
-                        // add this so it would not go to lower than the available queues
-                            if (queueIndex + 1 >= XYS[0]) {
-                                enqueue(Q[queueIndex].q, index);
-                            } else { 
-                                enqueue(Q[queueIndex+1].q, index);
-                                P[index].currentQueue = queueIndex+1;
-                            }
-                        
-                        P[index].accumulatedCPU = 0;
-                        done = 1;
-                    }   
-                } 
-            } else {
+            if (P[index].currentExeTime == 0) { 
                 //compute for the turn around time and waiting time
                 dequeue(Q[queueIndex].q);
                 
@@ -370,7 +371,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 int main () { 
     char fileName[100];
     int XYS[3];
-    int i, temp;
+    int i, j, temp;
     struct Process processes[MAX_PROCESS_SIZE];
     struct QueueProcess listQueues[MAX_QUEUE_SIZE];
     FILE *inputFile;
@@ -406,6 +407,13 @@ int main () {
             if (listQueues[i].queueID < 0 || listQueues[i].priority < 0 || listQueues[i].timeQuantum < 1) { 
                 printf("Invalid input for queues. Please rerun the program again.\n");
                 exit(0);
+            }
+
+            for (j=0; j<i;j++) {
+                if (listQueues[i].priority == listQueues[j].priority) {
+                    printf("Invalid input. Two or more queues cannot have the same priority. Please rerun the program again.\n");
+                    exit(0);
+                }
             }
 
             listQueues[i].q = init_queue();
