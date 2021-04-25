@@ -439,6 +439,18 @@ int main () {
                 exit(0);
             }
 
+            if (processes[i].IOBurstInterval == 0)
+                if (processes[i].IOBurstLength != 0){
+                    printf("When there is no I/O, length of I/O burst and how often I/O burst occurs should be both 0. Please rerun the program again.\n");
+                    exit(0);
+                }
+            
+            if (processes[i].IOBurstLength == 0)
+                if (processes[i].IOBurstInterval != 0){
+                    printf("When there is no I/O, length of I/O burst and how often I/O burst occurs should be both 0. Please rerun the program again.\n");
+                    exit(0);
+                }
+
             processes[i].currentExeTime = processes[i].totalExeTime;
             processes[i].countStartEnd = 0;
             processes[i].accumulatedCPU = 0;
