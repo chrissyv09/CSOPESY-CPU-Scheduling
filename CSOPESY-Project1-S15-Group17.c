@@ -189,7 +189,7 @@ int isAllProcessesFinish (struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int changei = 1;
-    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, tempTime, pastQueueIndex = -1;
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, pastQueueIndex = -1;
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
 
