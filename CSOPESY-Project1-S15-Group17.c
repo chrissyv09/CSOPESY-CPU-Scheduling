@@ -189,7 +189,7 @@ int isAllProcessesFinish (struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int total = 0, changei = 1;
-    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, tempTime;
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, tempTime, pastQueueIndex = -1;
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
 
@@ -202,7 +202,6 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
     enqueue(Q[0].q, i);
 
     for (time=0;(i < XYS[1] && (!isAllQueueEmpty(Q, XYS) || !isAllProcessesFinish(P, XYS)));time++) { 
-
         //while the succeeding arrival times are within the total time, add it to the highest priority queue
         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(Q[0].q, (i+1));
@@ -232,9 +231,9 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         while (k < XYS[1]){
             countStartEnd = P[k].countStartEnd;
             if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime <= time && P[k].outside) {
-
                 if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
                     if (P[k].currentQueue + 1 >= XYS[0]) {
+                        
                         enqueue(Q[P[k].currentQueue].q, k);
                     } else { 
                         enqueue(Q[P[k].currentQueue+1].q, k);
@@ -247,12 +246,11 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 }
 
                 // if the processes coming back from I/O has higher priority then pre-emp and add it back to the queue, do this only once
-                if (P[k].currentQueue < P[index].currentQueue && !preempt) {
+                if (P[k].currentQueue < P[index].currentQueue && !preempt && !isEmpty(Q[P[index].currentQueue].q)) {
                     dequeue(Q[P[index].currentQueue].q);
                     enqueue(Q[P[index].currentQueue].q, index);
                     preempt = 1;
                 }
-
                 P[k].outside = 0;
             }
             k++;
@@ -273,13 +271,12 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 
             tempS += XYS[2]; // added this kasi every S yung priority boost
         }
-
+        
         // loop from the first priority queue to the last until a process is found
         j = 0;
         found = 0; //finding the next process to execute
         while (j < XYS[0] && !found) { 
             if (!isEmpty(Q[j].q)) {
-
                 index = queue_head(Q[j].q);     // get the top of the head only (don't remove from the queue)
                 queueIndex = j;
                 found = 1;
@@ -298,12 +295,13 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             //run the process picked (BIG PART)
             countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
 
-            if (index == pastIndex){
+            if (index == pastIndex && pastQueueIndex == queueIndex && Q[queueIndex].timeQuantum > (P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime)){
                 P[index].startEnd[countStartEnd].endTime++;
             } else {
                 if (running && P[pastIndex].currentExeTime > 0 && !P[pastIndex].outside)
                     P[pastIndex].countStartEnd++;
 
+                countStartEnd = P[index].countStartEnd; //counts the number of rows for printing
                 P[index].startEnd[countStartEnd].IOQueue = 0; // meaning the startend time is for the queue
                 P[index].startEnd[countStartEnd].queueID = Q[queueIndex].queueID; // store the queue id
                 P[index].startEnd[countStartEnd].startTime = time;
@@ -313,6 +311,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             P[index].currentExeTime--;
             P[index].accumulatedCPU++;
             pastIndex = index;
+            pastQueueIndex = queueIndex;
 
             if (!running)
                 running = 1;
@@ -361,6 +360,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             index = -1;
             pastIndex = -1;
             done = 1;
+            pastQueueIndex = -1;
         }
     }
 
