@@ -458,8 +458,8 @@ int main () {
             processes[i].outside = 0;
         }
 
-        processes[100].startEnd[processes[100].countStartEnd].endTime = 2147483647;
-        processes[100].countStartEnd++;
+        // processes[100].startEnd[processes[100].countStartEnd].endTime = 2147483647;
+        // processes[100].countStartEnd++;
 
         // Y less than the number of processes
         if (fscanf(inputFile,"%d",&temp)==1) {
