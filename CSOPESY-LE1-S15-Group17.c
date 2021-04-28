@@ -26,6 +26,7 @@ struct Process {
     int totalExeTime;
     int IOBurstLength;
     int IOBurstInterval;
+    int origIOBurstInterval;
     int turnAroundTime;
     int waitingTime;
     struct StartEndTime startEnd[1000];
@@ -189,7 +190,7 @@ int isAllProcessesFinish (struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
 
 void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Process P[MAX_PROCESS_SIZE], int XYS[3]) {
     int changei = 1;
-    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, currentCPUTime, done = 0, preempt = 0, pastQueueIndex = -1;
+    int i, j, k, l, time, found = 0, index = 0, tempIndex, queueIndex = 0, countStartEnd, tempS = XYS[2], running = 0, pastIndex, curCPUTimePerProc, done = 0, preempt = 0, pastQueueIndex = -1;
     // sort arrival time of processes
     arrangeProcessArrivalTimes(P, XYS);
 
@@ -316,10 +317,10 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
             if (!running)
                 running = 1;
 
-            currentCPUTime = P[index].startEnd[countStartEnd].endTime - P[index].startEnd[countStartEnd].startTime;
+            curCPUTimePerProc = P[index].totalExeTime - P[index].currentExeTime;
 
             // if there is I/O, enter this statement
-            if (P[index].IOBurstInterval > 0 && currentCPUTime >= P[index].IOBurstInterval && currentCPUTime <= Q[queueIndex].timeQuantum && P[index].currentExeTime != 0) {
+            if (P[index].IOBurstInterval > 0 && curCPUTimePerProc >= P[index].IOBurstInterval && P[index].currentExeTime != 0) {
                 P[index].outside = 1;
                 done = 1;
                 dequeue(Q[queueIndex].q);
@@ -331,6 +332,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 P[index].startEnd[countStartEnd].startTime =  P[index].startEnd[countStartEnd-1].endTime;
                 P[index].startEnd[countStartEnd].endTime = P[index].startEnd[countStartEnd].startTime + P[index].IOBurstLength;
                 P[index].countStartEnd++;
+                P[index].IOBurstInterval += P[index].origIOBurstInterval;
             }
 
             //if total execution time is not yet 0, add it again to one of the queues
@@ -456,6 +458,7 @@ int main () {
             processes[i].accumulatedCPU = 0;
             processes[i].currentQueue = 0;
             processes[i].outside = 0;
+            processes[i].origIOBurstInterval = processes[i].IOBurstInterval;
         }
 
         // processes[100].startEnd[processes[100].countStartEnd].endTime = 2147483647;
