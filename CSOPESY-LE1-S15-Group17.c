@@ -210,21 +210,23 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         }
 
         // place here para arriving process will come first before putting these in the queue 
+        //if total execution time is not yet 0, add it again to one of the queues
         if (index != -1 && !P[index].outside && P[index].currentExeTime != 0) { 
             //if accumulated CPU reach the current queue demote the process to the next lowest
-            if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum) {
+            if (P[index].accumulatedCPU >= Q[queueIndex].timeQuantum && queueIndex + 1 < XYS[0]) {
                 dequeue(Q[queueIndex].q);
-                // add this so it would not go to lower than the available queues
-                    if (queueIndex + 1 >= XYS[0]) {
-                        enqueue(Q[queueIndex].q, index);
-                    } else { 
-                        enqueue(Q[queueIndex+1].q, index);
-                        P[index].currentQueue = queueIndex+1;
-                    }
+
+                enqueue(Q[queueIndex+1].q, index);
+                P[index].currentQueue = queueIndex+1;
                 
                 P[index].accumulatedCPU = 0;
                 done = 1;
-            }   
+            // if nasa last queue na and lampas na ng time quantum
+            } else if (queueIndex + 1 >= XYS[0] && (P[index].startEnd[P[index].countStartEnd].endTime - P[index].startEnd[P[index].countStartEnd].startTime) >= Q[queueIndex].timeQuantum) {
+                dequeue(Q[queueIndex].q);
+                enqueue(Q[queueIndex].q, index);
+                done = 1;
+            }
         } 
 
         k = 0;
@@ -335,7 +337,7 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
                 P[index].IOBurstInterval += P[index].origIOBurstInterval;
             }
 
-            //if total execution time is not yet 0, add it again to one of the queues
+            // computes for waiting turn around time when current exe is 0
             if (P[index].currentExeTime == 0) { 
                 //compute for the turn around time and waiting time
                 dequeue(Q[queueIndex].q);
