@@ -234,17 +234,13 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
         while (k < XYS[1]){
             countStartEnd = P[k].countStartEnd;
             if (countStartEnd != 0 && P[k].startEnd[countStartEnd-1].IOQueue == 1 && P[k].startEnd[countStartEnd-1].endTime <= time && P[k].outside) {
-                if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum) {
-                    if (P[k].currentQueue + 1 >= XYS[0]) {
-                        
-                        enqueue(Q[P[k].currentQueue].q, k);
-                    } else { 
-                        enqueue(Q[P[k].currentQueue+1].q, k);
-                        P[k].currentQueue += 1;
-                    }
+                if (P[k].accumulatedCPU >= Q[P[k].currentQueue].timeQuantum && P[k].currentQueue + 1 < XYS[0]) {
+                    enqueue(Q[P[k].currentQueue+1].q, k);
+                    
+                    P[k].currentQueue += 1;
                    
                     P[k].accumulatedCPU = 0;
-                } else { 
+                } else if (P[k].currentQueue + 1 >= XYS[0] || P[k].accumulatedCPU < Q[P[k].currentQueue].timeQuantum) { 
                     enqueue(Q[P[k].currentQueue].q, k);
                 }
 
