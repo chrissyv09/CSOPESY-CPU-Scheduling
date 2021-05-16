@@ -204,8 +204,15 @@ void multilevelFeedbackQueue (struct QueueProcess Q[MAX_QUEUE_SIZE], struct Proc
 
     for (time=0;(i < XYS[1] && (!isAllQueueEmpty(Q, XYS) || !isAllProcessesFinish(P, XYS)));time++) { 
         //while the succeeding arrival times are within the total time, add it to the highest priority queue
+        preempt = 0;
         while ((i+1) < XYS[1] && P[i+1].arrivalTime <= time) { 
             enqueue(Q[0].q, (i+1));
+            // if the processes arriving has higher priority then pre-emp and add it back to the queue, do this only once
+            if (index != -1 && running && P[i+1].currentQueue < P[index].currentQueue && !preempt && !isEmpty(Q[P[index].currentQueue].q) && P[index].currentExeTime != 0 && !done) {
+                dequeue(Q[P[index].currentQueue].q);
+                enqueue(Q[P[index].currentQueue].q, index);
+                preempt = 1;
+            }      
             i++;
         }
 
